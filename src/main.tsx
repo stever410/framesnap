@@ -1,15 +1,10 @@
 import { render } from "preact";
-import { injectSpeedInsights } from "@vercel/speed-insights";
 import { App } from "./app/app";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/components.css";
 
 const APP_VERSION = __APP_VERSION__;
-
-if (import.meta.env.PROD) {
-  injectSpeedInsights();
-}
 
 if ("serviceWorker" in navigator) {
   if (import.meta.env.PROD) {
@@ -53,9 +48,12 @@ if ("serviceWorker" in navigator) {
         });
 
         void registration.update();
-        window.setInterval(() => {
-          void registration.update();
-        }, 60 * 60 * 1000);
+        window.setInterval(
+          () => {
+            void registration.update();
+          },
+          60 * 60 * 1000,
+        );
       })
       .catch(() => {
         // Ignore SW registration failures and continue with network-only behavior.

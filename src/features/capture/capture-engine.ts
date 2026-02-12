@@ -10,9 +10,16 @@ export type CaptureResult = {
 };
 
 const SEEK_TIMEOUT_MS = 3000;
+const SEEK_EPSILON_SEC = 0.001;
+const FRAME_READY_TIMEOUT_MS = 220;
 
 function waitForSeek(video: HTMLVideoElement, targetSec: number, timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
+    if (Math.abs(video.currentTime - targetSec) <= SEEK_EPSILON_SEC) {
+      resolve();
+      return;
+    }
+
     const onSeeked = (): void => {
       cleanup();
       resolve();
@@ -59,6 +66,33 @@ function nextAnimationFrame(): Promise<void> {
   });
 }
 
+async function waitForRenderedFrame(video: HTMLVideoElement): Promise<void> {
+  const withFrameCallback = video as HTMLVideoElement & {
+    requestVideoFrameCallback?: (callback: (now: DOMHighResTimeStamp, metadata: unknown) => void) => number;
+  };
+
+  if (typeof withFrameCallback.requestVideoFrameCallback === "function") {
+    await Promise.race([
+      new Promise<void>((resolve) => {
+        withFrameCallback.requestVideoFrameCallback?.(() => resolve());
+      }),
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, FRAME_READY_TIMEOUT_MS);
+      })
+    ]);
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 50);
+    });
+  }
+
+  await nextAnimationFrame();
+  await nextAnimationFrame();
+}
+
 function toBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -75,9 +109,12 @@ function toBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
 export async function captureFrameAt(video: HTMLVideoElement, targetSec: number): Promise<CaptureResult> {
   const duration = Number.isFinite(video.duration) ? video.duration : 0;
   const clampedTarget = Math.max(0, Math.min(targetSec, duration));
+  const shouldResumePlayback = !video.paused && !video.ended;
+
+  video.pause();
 
   await seekWithRetry(video, clampedTarget);
-  await nextAnimationFrame();
+  await waitForRenderedFrame(video);
 
   const width = video.videoWidth;
   const height = video.videoHeight;
@@ -95,17 +132,25 @@ export async function captureFrameAt(video: HTMLVideoElement, targetSec: number)
     throw new AppError("CAPTURE_FAILED", "Could not acquire canvas context");
   }
 
-  ctx.drawImage(video, 0, 0, width, height);
-  const blob = await toBlob(canvas, "image/png");
-  const file = new File([blob], `framesnap-${fileSafeTimestamp(clampedTarget)}.png`, {
-    type: "image/png"
-  });
+  try {
+    ctx.drawImage(video, 0, 0, width, height);
+    const blob = await toBlob(canvas, "image/png");
+    const file = new File([blob], `framesnap-${fileSafeTimestamp(clampedTarget)}.png`, {
+      type: "image/png"
+    });
 
-  return {
-    blob,
-    file,
-    width,
-    height,
-    timestampSec: clampedTarget
-  };
+    return {
+      blob,
+      file,
+      width,
+      height,
+      timestampSec: clampedTarget
+    };
+  } finally {
+    if (shouldResumePlayback) {
+      void video.play().catch(() => {
+        // Ignore autoplay/playback policy failures.
+      });
+    }
+  }
 }

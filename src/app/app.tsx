@@ -3,7 +3,11 @@ import type { JSX } from "preact";
 import { reducer } from "./reducer";
 import { initialState } from "./types";
 import { canShareFiles, isIOS } from "../platform/capability";
-import { assertSupportedVideo, createVideoObjectUrl, revokeVideoObjectUrl } from "../features/video/video-engine";
+import {
+  assertSupportedVideo,
+  createVideoObjectUrl,
+  revokeVideoObjectUrl,
+} from "../features/video/video-engine";
 import { captureFrameAt } from "../features/capture/capture-engine";
 import { downloadCapture, shareCapture } from "../features/share/share-service";
 import { AppError, toUserMessage } from "../shared/errors";
@@ -13,8 +17,18 @@ export function App(): JSX.Element {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [timestampInput, setTimestampInput] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [timestampPreviewUrl, setTimestampPreviewUrl] = useState<string | null>(
+    null,
+  );
+  const [timestampPreviewSec, setTimestampPreviewSec] = useState<number | null>(
+    null,
+  );
+  const [downloadState, setDownloadState] = useState<
+    "idle" | "preparing" | "downloading"
+  >("idle");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     try {
@@ -41,8 +55,8 @@ export function App(): JSX.Element {
       type: "app/bootstrap",
       payload: {
         canShareFiles: canShareFiles(),
-        isIOS: isIOS()
-      }
+        isIOS: isIOS(),
+      },
     });
   }, []);
 
@@ -66,36 +80,92 @@ export function App(): JSX.Element {
     };
   }, [state.capture.file]);
 
-  const currentTimestampLabel = useMemo(() => formatTimestamp(state.video.currentTimeSec), [state.video.currentTimeSec]);
+  useEffect(() => {
+    return () => {
+      if (timestampPreviewUrl) {
+        URL.revokeObjectURL(timestampPreviewUrl);
+      }
+    };
+  }, [timestampPreviewUrl]);
 
-  const loadVideoMetadata = (url: string): Promise<{ durationSec: number; width: number; height: number }> => {
-    return new Promise<{ durationSec: number; width: number; height: number }>((resolve, reject) => {
-      const probe = document.createElement("video");
-      probe.preload = "metadata";
-      probe.src = url;
+  const currentTimestampLabel = useMemo(
+    () => formatTimestamp(state.video.currentTimeSec),
+    [state.video.currentTimeSec],
+  );
+  const hasVideo = state.video.objectUrl !== null;
+  const SEEK_TIMEOUT_MS = 3000;
 
-      const onLoaded = (): void => {
+  const loadVideoMetadata = (
+    url: string,
+  ): Promise<{ durationSec: number; width: number; height: number }> => {
+    return new Promise<{ durationSec: number; width: number; height: number }>(
+      (resolve, reject) => {
+        const probe = document.createElement("video");
+        probe.preload = "metadata";
+        probe.src = url;
+
+        const onLoaded = (): void => {
+          cleanup();
+          resolve({
+            durationSec: probe.duration,
+            width: probe.videoWidth,
+            height: probe.videoHeight,
+          });
+        };
+
+        const onError = (): void => {
+          cleanup();
+          reject(
+            new AppError("VIDEO_LOAD_FAILED", "Video metadata failed to load"),
+          );
+        };
+
+        const cleanup = (): void => {
+          probe.removeEventListener("loadedmetadata", onLoaded);
+          probe.removeEventListener("error", onError);
+          probe.src = "";
+        };
+
+        probe.addEventListener("loadedmetadata", onLoaded, { once: true });
+        probe.addEventListener("error", onError, { once: true });
+      },
+    );
+  };
+
+  const seekVideoTo = (
+    video: HTMLVideoElement,
+    targetSec: number,
+  ): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      if (Math.abs(video.currentTime - targetSec) <= 0.001) {
+        resolve();
+        return;
+      }
+
+      const onSeeked = (): void => {
         cleanup();
-        resolve({
-          durationSec: probe.duration,
-          width: probe.videoWidth,
-          height: probe.videoHeight
-        });
+        resolve();
       };
 
       const onError = (): void => {
         cleanup();
-        reject(new AppError("VIDEO_LOAD_FAILED", "Video metadata failed to load"));
+        reject(new AppError("SEEK_TIMEOUT", "Seek failed"));
       };
+
+      const timer = window.setTimeout(() => {
+        cleanup();
+        reject(new AppError("SEEK_TIMEOUT", "Seek timeout"));
+      }, SEEK_TIMEOUT_MS);
 
       const cleanup = (): void => {
-        probe.removeEventListener("loadedmetadata", onLoaded);
-        probe.removeEventListener("error", onError);
-        probe.src = "";
+        video.removeEventListener("seeked", onSeeked);
+        video.removeEventListener("error", onError);
+        window.clearTimeout(timer);
       };
 
-      probe.addEventListener("loadedmetadata", onLoaded, { once: true });
-      probe.addEventListener("error", onError, { once: true });
+      video.addEventListener("seeked", onSeeked, { once: true });
+      video.addEventListener("error", onError, { once: true });
+      video.currentTime = targetSec;
     });
   };
 
@@ -111,6 +181,11 @@ export function App(): JSX.Element {
     dispatch({ type: "video/loading" });
 
     try {
+      if (timestampPreviewUrl) {
+        URL.revokeObjectURL(timestampPreviewUrl);
+        setTimestampPreviewUrl(null);
+        setTimestampPreviewSec(null);
+      }
       assertSupportedVideo(file);
       const objectUrl = createVideoObjectUrl(file);
       nextObjectUrl = objectUrl;
@@ -124,8 +199,8 @@ export function App(): JSX.Element {
           objectUrl,
           durationSec: metadata.durationSec,
           width: metadata.width,
-          height: metadata.height
-        }
+          height: metadata.height,
+        },
       });
       setTimestampInput("");
     } catch (error: unknown) {
@@ -135,24 +210,12 @@ export function App(): JSX.Element {
         type: "error/set",
         payload: {
           code,
-          message: toUserMessage(error)
-        }
+          message: toUserMessage(error),
+        },
       });
     } finally {
       input.value = "";
     }
-  };
-
-  const onScrub = (event: Event): void => {
-    const input = event.target as HTMLInputElement;
-    const nextTime = Number(input.value);
-    const video = videoRef.current;
-    if (!video || !Number.isFinite(nextTime)) {
-      return;
-    }
-
-    video.currentTime = nextTime;
-    dispatch({ type: "video/time-updated", payload: { currentTimeSec: nextTime } });
   };
 
   const onTimeUpdate = (): void => {
@@ -161,7 +224,10 @@ export function App(): JSX.Element {
       return;
     }
 
-    dispatch({ type: "video/time-updated", payload: { currentTimeSec: video.currentTime } });
+    dispatch({
+      type: "video/time-updated",
+      payload: { currentTimeSec: video.currentTime },
+    });
   };
 
   const onCapture = async (): Promise<void> => {
@@ -183,8 +249,8 @@ export function App(): JSX.Element {
           file: result.file,
           width: result.width,
           height: result.height,
-          timestampSec: result.timestampSec
-        }
+          timestampSec: result.timestampSec,
+        },
       });
     } catch (error: unknown) {
       const code = error instanceof AppError ? error.code : "CAPTURE_FAILED";
@@ -192,8 +258,8 @@ export function App(): JSX.Element {
         type: "error/set",
         payload: {
           code,
-          message: toUserMessage(error)
-        }
+          message: toUserMessage(error),
+        },
       });
     }
   };
@@ -210,8 +276,8 @@ export function App(): JSX.Element {
           type: "error/set",
           payload: {
             code: "SHARE_FAILED",
-            message: "Share is unavailable. Use Download instead."
-          }
+            message: "Share is unavailable. Use Download instead.",
+          },
         });
       }
     } catch (error: unknown) {
@@ -219,8 +285,8 @@ export function App(): JSX.Element {
         type: "error/set",
         payload: {
           code: "SHARE_FAILED",
-          message: toUserMessage(error)
-        }
+          message: toUserMessage(error),
+        },
       });
     }
   };
@@ -230,23 +296,148 @@ export function App(): JSX.Element {
       return;
     }
 
-    downloadCapture(state.capture.file);
+    if (downloadState !== "idle") {
+      return;
+    }
+
+    setDownloadState("preparing");
+    window.setTimeout(() => {
+      setDownloadState("downloading");
+      window.setTimeout(() => {
+        downloadCapture(state.capture.file as File);
+        setDownloadState("idle");
+      }, 120);
+    }, 80);
+  };
+
+  const onOpenVideoPicker = (): void => {
+    fileInputRef.current?.click();
+  };
+
+  const syncPreviewWithCurrentFrame = async (options?: {
+    updateInput?: boolean;
+  }): Promise<void> => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    const currentTime = Number.isFinite(video.currentTime)
+      ? Math.max(0, video.currentTime)
+      : 0;
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+    await createTimestampPreview(currentTime);
+    dispatch({
+      type: "video/time-updated",
+      payload: { currentTimeSec: currentTime },
+    });
+
+    if (options?.updateInput) {
+      setTimestampInput(formatTimestamp(currentTime));
+    }
+  };
+
+  const createTimestampPreview = async (targetSec: number): Promise<void> => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth <= 0 || video.videoHeight <= 0) {
+      return;
+    }
+
+    const maxWidth = 420;
+    const scale = Math.min(1, maxWidth / video.videoWidth);
+    const width = Math.max(1, Math.floor(video.videoWidth * scale));
+    const height = Math.max(1, Math.floor(video.videoHeight * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, width, height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((value) => resolve(value), "image/jpeg", 0.88);
+    });
+
+    if (!blob) {
+      return;
+    }
+
+    const nextUrl = URL.createObjectURL(blob);
+    setTimestampPreviewUrl((previousUrl) => {
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+      return nextUrl;
+    });
+    setTimestampPreviewSec(targetSec);
+  };
+
+  const seekToTimestampInput = async (): Promise<void> => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    const parsed = parseTimestampInput(timestampInput);
+    if (parsed === null) {
+      return;
+    }
+
+    const duration = state.video.durationSec;
+    const clampedTime =
+      Number.isFinite(duration) && duration > 0
+        ? Math.max(0, Math.min(parsed, duration))
+        : Math.max(0, parsed);
+
+    try {
+      await seekVideoTo(video, clampedTime);
+      dispatch({
+        type: "video/time-updated",
+        payload: { currentTimeSec: clampedTime },
+      });
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+      await createTimestampPreview(clampedTime);
+      setTimestampInput(formatTimestamp(clampedTime));
+    } catch {
+      dispatch({
+        type: "error/set",
+        payload: {
+          code: "SEEK_TIMEOUT",
+          message: "Could not seek to that timestamp. Try a nearby value.",
+        },
+      });
+    }
   };
 
   return (
     <main class="app-shell">
-      <header class="glass card hero">
+      <header
+        class={hasVideo ? "glass card hero hero--compact" : "glass card hero"}
+      >
         <div class="hero-top">
           <div class="hero-headline">
             <h1 class="display">FrameSnap</h1>
-            <p class="body hero-subtitle">Capture precise frames from local videos. No uploads. No tracking.</p>
+            <p class="body hero-subtitle">
+              Capture precise frames from local videos. No uploads. No tracking.
+            </p>
           </div>
           <label class="theme-switch">
             <input
               type="checkbox"
               class="theme-switch__input"
               checked={theme === "dark"}
-              onChange={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
+              onChange={() =>
+                setTheme((prev) => (prev === "light" ? "dark" : "light"))
+              }
               aria-label="Toggle dark mode"
             />
             <span class="theme-switch__track" aria-hidden="true">
@@ -260,102 +451,269 @@ export function App(): JSX.Element {
       {state.error.message ? (
         <section class="error-banner" role="status" aria-live="polite">
           <p>{state.error.message}</p>
-          <button type="button" class="btn-secondary" onClick={() => dispatch({ type: "error/clear" })}>
+          <button
+            type="button"
+            class="btn-secondary"
+            onClick={() => dispatch({ type: "error/clear" })}
+          >
             Dismiss
           </button>
         </section>
       ) : null}
 
-      <section class="glass card upload-card">
-        <input
-          id="video-upload"
-          class="file-input-hidden"
-          type="file"
-          accept="video/*"
-          onChange={(event) => {
-            void onSelectVideo(event);
-          }}
-        />
-        <label class="upload-dropzone" htmlFor="video-upload">
-          <span class="upload-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 4V15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M8 8L12 4L16 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              <path
-                d="M4.5 15.5V17.5C4.5 18.6046 5.39543 19.5 6.5 19.5H17.5C18.6046 19.5 19.5 18.6046 19.5 17.5V15.5"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-              />
-            </svg>
-          </span>
-          <span class="upload-title">Drop your video here or browse</span>
-          <span class="upload-subtitle">MP4, MOV, WebM. Processed locally on your device.</span>
-          <span class="upload-cta">Choose Video</span>
-        </label>
-        <p class="meta upload-meta">
-          {state.video.fileName ? `Current file: ${state.video.fileName}` : "No file selected yet."}
-        </p>
-      </section>
+      <input
+        ref={fileInputRef}
+        id="video-upload"
+        class="file-input-hidden"
+        type="file"
+        accept="video/*"
+        onChange={(event) => {
+          void onSelectVideo(event);
+        }}
+      />
 
-      {state.video.objectUrl ? (
-        <section class="glass card video-panel">
-          <video
-            ref={videoRef}
-            class="video"
-            src={state.video.objectUrl}
-            controls
-            playsInline
-            onTimeUpdate={onTimeUpdate}
-            aria-label="Video preview"
-          />
+      {!hasVideo ? (
+        <section class="glass card upload-card">
+          <button
+            type="button"
+            class="upload-dropzone"
+            onClick={onOpenVideoPicker}
+          >
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 4V15"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M8 8L12 4L16 8"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M4.5 15.5V17.5C4.5 18.6046 5.39543 19.5 6.5 19.5H17.5C18.6046 19.5 19.5 18.6046 19.5 17.5V15.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            <span class="upload-title">Drop your video here or browse</span>
+            <span class="upload-subtitle">
+              MP4, MOV, WebM. Processed locally on your device.
+            </span>
+            <span class="upload-cta">Choose Video</span>
+          </button>
+          <p class="meta upload-meta">
+            {state.video.fileName
+              ? `Current file: ${state.video.fileName}`
+              : "No file selected yet."}
+          </p>
+        </section>
+      ) : null}
 
-          <div class="timeline-wrap">
-            <label class="meta" htmlFor="timeline">
-              Timeline {currentTimestampLabel}
-            </label>
-            <input
-              id="timeline"
-              class="timeline"
-              type="range"
-              min={0}
-              max={state.video.durationSec}
-              value={state.video.currentTimeSec}
-              step={0.001}
-              onInput={onScrub}
+      {hasVideo ? (
+        <section class="glass card video-stage">
+          <div class="video-stage__header">
+            <p
+              class="video-stage__filename"
+              title={state.video.fileName ?? undefined}
+            >
+              {state.video.fileName ?? "Selected video"}
+            </p>
+            <button
+              type="button"
+              class="video-stage__change"
+              onClick={onOpenVideoPicker}
+            >
+              <span class="icon-sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M7.8 8.6A6.6 6.6 0 0 1 18 14.2M16.2 15.4A6.6 6.6 0 0 1 6 9.8"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M17.9 10.4V6.8H14.3M6.1 13.6V17.2H9.7"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              Change Video
+            </button>
+          </div>
+
+          <div class="video-stage__viewport">
+            <video
+              ref={videoRef}
+              class="video-stage__media"
+              src={state.video.objectUrl ?? undefined}
+              controls
+              playsInline
+              preload="metadata"
+              onTimeUpdate={onTimeUpdate}
+              onPause={() => {
+                void syncPreviewWithCurrentFrame();
+              }}
+              onEnded={() => {
+                void syncPreviewWithCurrentFrame();
+              }}
+              aria-label="Video preview"
             />
           </div>
 
-          <div class="capture-controls">
-            <label class="meta" htmlFor="timestamp-input">
-              Enter timestamp (mm:ss.xxx)
-            </label>
-            <input
-              id="timestamp-input"
-              class="timestamp-input"
-              value={timestampInput}
-              placeholder={currentTimestampLabel}
-              onInput={(event) => setTimestampInput((event.target as HTMLInputElement).value)}
-            />
-            <button
-              type="button"
-              class="btn-primary"
-              disabled={state.phase === "capturing"}
-              onClick={() => {
-                void onCapture();
-              }}
-            >
-              {state.phase === "capturing" ? "Capturing..." : "Capture Frame"}
-            </button>
+          <div class="video-stage__controls">
+            <div class="capture-controls">
+              <p class="meta video-stage__label with-icon">
+                <span class="icon-sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="8.5"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                    <path
+                      d="M12 7.5V12L15 13.8"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                Current time {currentTimestampLabel}
+              </p>
+              <label
+                class="meta video-stage__label with-icon"
+                htmlFor="timestamp-input"
+              >
+                <span class="icon-sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <rect
+                      x="4.5"
+                      y="6"
+                      width="15"
+                      height="12"
+                      rx="2.2"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                    <path
+                      d="M8 10.5H16M8 14H13"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                Enter timestamp (mm:ss.xxx)
+              </label>
+              <div class="timestamp-input-wrap">
+                <input
+                  id="timestamp-input"
+                  class="timestamp-input"
+                  value={timestampInput}
+                  placeholder={currentTimestampLabel}
+                  inputMode="decimal"
+                  onInput={(event) =>
+                    setTimestampInput((event.target as HTMLInputElement).value)
+                  }
+                  onBlur={() => {
+                    void seekToTimestampInput();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void seekToTimestampInput();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  class="timestamp-current-btn"
+                  aria-label="Use current frame timestamp"
+                  title="Use current frame"
+                  onClick={() => {
+                    void syncPreviewWithCurrentFrame({ updateInput: true });
+                  }}
+                >
+                  <span class="icon-sm" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M5.5 12A6.5 6.5 0 0 1 12 5.5h2M18.5 12A6.5 6.5 0 0 1 12 18.5H10"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        d="M14 3.8L17 5.5L14 7.2M10 20.2L7 18.5L10 16.8"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                      />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+              {timestampPreviewUrl && timestampPreviewSec !== null ? (
+                <figure class="frame-preview">
+                  <img
+                    class="frame-preview__image"
+                    src={timestampPreviewUrl}
+                    alt={`Frame preview at ${formatTimestamp(timestampPreviewSec)}`}
+                  />
+                  <figcaption class="meta frame-preview__caption">
+                    Preview at {formatTimestamp(timestampPreviewSec)}
+                  </figcaption>
+                </figure>
+              ) : null}
+              <button
+                type="button"
+                class="btn-primary with-icon"
+                disabled={state.phase === "capturing"}
+                onClick={() => {
+                  void onCapture();
+                }}
+              >
+                <span class="icon-sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <rect
+                      x="4.5"
+                      y="7.5"
+                      width="15"
+                      height="9"
+                      rx="2.2"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                    <circle cx="12" cy="12" r="2.4" fill="currentColor" />
+                  </svg>
+                </span>
+                {state.phase === "capturing" ? "Capturing..." : "Capture Frame"}
+              </button>
+            </div>
           </div>
         </section>
       ) : null}
 
       {previewUrl && state.capture.timestampSec !== null ? (
         <section class="glass card capture-panel">
-          <img class="capture-image" src={previewUrl} alt="Captured frame preview" />
+          <img
+            class="capture-image"
+            src={previewUrl}
+            alt="Captured frame preview"
+          />
           <div class="chip-row">
-            <span class="chip">{formatTimestamp(state.capture.timestampSec)}</span>
+            <span class="chip">
+              {formatTimestamp(state.capture.timestampSec)}
+            </span>
             <span class="chip">
               {state.capture.width} x {state.capture.height}
             </span>
@@ -365,23 +723,99 @@ export function App(): JSX.Element {
             {state.capabilities.canShareFiles ? (
               <button
                 type="button"
-                class="btn-primary"
+                class="btn-primary with-icon"
                 onClick={() => {
                   void onShare();
                 }}
               >
+                <span class="icon-sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 4V14"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      d="M8.5 7.5L12 4L15.5 7.5"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                    <rect
+                      x="5"
+                      y="14.5"
+                      width="14"
+                      height="5"
+                      rx="1.8"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                  </svg>
+                </span>
                 Share
               </button>
             ) : null}
-            <button type="button" class="btn-secondary" onClick={onDownload}>
-              Download
+            <button
+              type="button"
+              class="btn-secondary with-icon"
+              onClick={onDownload}
+              disabled={downloadState !== "idle"}
+            >
+              <span class="icon-sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 4V14"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M8.5 10.5L12 14L15.5 10.5"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <rect
+                    x="5"
+                    y="15"
+                    width="14"
+                    height="4.5"
+                    rx="1.8"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                </svg>
+              </span>
+              {downloadState === "idle"
+                ? "Download"
+                : downloadState === "preparing"
+                  ? "Preparing..."
+                  : "Downloading..."}
             </button>
-            <button type="button" class="btn-text" onClick={() => dispatch({ type: "capture/reset" })}>
+            <button
+              type="button"
+              class="btn-text with-icon"
+              onClick={() => dispatch({ type: "capture/reset" })}
+            >
+              <span class="icon-sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M6.5 12a5.5 5.5 0 1 0 1.3-3.5M6.5 8V4.8M6.5 8H9.7"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
               Capture Again
             </button>
           </div>
 
-          {state.capabilities.isIOS ? <p class="meta">On iPhone, tap Share and choose Save Image.</p> : null}
+          {state.capabilities.isIOS ? (
+            <p class="meta">On iPhone, tap Share and choose Save Image.</p>
+          ) : null}
         </section>
       ) : null}
     </main>

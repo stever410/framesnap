@@ -79,6 +79,7 @@ export function App(): JSX.Element {
     [state.video.currentTimeSec],
   );
   const hasVideo = state.video.objectUrl !== null;
+  const appVersion = __APP_VERSION__;
   const SEEK_TIMEOUT_MS = 3000;
 
   const loadVideoMetadata = (
@@ -739,6 +740,19 @@ export function App(): JSX.Element {
 
       <footer class="app-footer" aria-label="App credits">
         <p class="app-footer__text">
+          <span class="app-footer__item">
+            <span class="icon-sm app-footer__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M7 6.5h10M7 12h10M7 17.5h6"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            FrameSnap v{appVersion}
+          </span>
           <span class="app-footer__item">
             <span class="icon-sm app-footer__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">

@@ -241,6 +241,8 @@
 }
 
 .video-stage__viewport {
+  position: relative;
+  overflow: hidden;
   height: clamp(260px, 56dvh, 560px);
   border-radius: 18px;
   border: 1px solid var(--control-border);
@@ -261,6 +263,25 @@
   max-height: none;
   object-fit: contain;
   background: #000;
+}
+
+.video-stage__capture-overlay {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: var(--z-base);
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-stroke);
+  background: linear-gradient(145deg, var(--glass-fill-strong), var(--glass-fill));
+  color: var(--text-primary);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+
+.video-stage__capture-overlay:disabled {
+  opacity: 0.72;
 }
 
 .video-stage__controls {
@@ -536,6 +557,13 @@
 }
 
 @media (max-width: 680px) {
+  .video-stage__capture-overlay {
+    top: 10px;
+    right: 10px;
+    padding: 0 10px;
+    font-size: 0.82rem;
+  }
+
   .video-stage__viewport {
     height: clamp(240px, 48dvh, 440px);
   }

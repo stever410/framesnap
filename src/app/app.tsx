@@ -536,6 +536,30 @@ export function App(): JSX.Element {
               }}
               aria-label="Video preview"
             />
+            <button
+              type="button"
+              class="btn-primary with-icon video-stage__capture-overlay"
+              disabled={state.phase === "capturing"}
+              onClick={() => {
+                void onCapture();
+              }}
+            >
+              <span class="icon-sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <rect
+                    x="4.5"
+                    y="7.5"
+                    width="15"
+                    height="9"
+                    rx="2.2"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                  <circle cx="12" cy="12" r="2.4" fill="currentColor" />
+                </svg>
+              </span>
+              {state.phase === "capturing" ? "Capturing..." : "Capture Frame"}
+            </button>
           </div>
 
           <div class="video-stage__controls">
@@ -611,30 +635,6 @@ export function App(): JSX.Element {
                   }}
                 />
               </div>
-              <button
-                type="button"
-                class="btn-primary with-icon"
-                disabled={state.phase === "capturing"}
-                onClick={() => {
-                  void onCapture();
-                }}
-              >
-                <span class="icon-sm" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <rect
-                      x="4.5"
-                      y="7.5"
-                      width="15"
-                      height="9"
-                      rx="2.2"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                    />
-                    <circle cx="12" cy="12" r="2.4" fill="currentColor" />
-                  </svg>
-                </span>
-                {state.phase === "capturing" ? "Capturing..." : "Capture Frame"}
-              </button>
             </div>
           </div>
         </section>

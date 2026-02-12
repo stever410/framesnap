@@ -17,12 +17,6 @@ export function App(): JSX.Element {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [timestampInput, setTimestampInput] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [timestampPreviewUrl, setTimestampPreviewUrl] = useState<string | null>(
-    null,
-  );
-  const [timestampPreviewSec, setTimestampPreviewSec] = useState<number | null>(
-    null,
-  );
   const [downloadState, setDownloadState] = useState<
     "idle" | "preparing" | "downloading"
   >("idle");
@@ -79,14 +73,6 @@ export function App(): JSX.Element {
       URL.revokeObjectURL(objectUrl);
     };
   }, [state.capture.file]);
-
-  useEffect(() => {
-    return () => {
-      if (timestampPreviewUrl) {
-        URL.revokeObjectURL(timestampPreviewUrl);
-      }
-    };
-  }, [timestampPreviewUrl]);
 
   const currentTimestampLabel = useMemo(
     () => formatTimestamp(state.video.currentTimeSec),
@@ -181,11 +167,6 @@ export function App(): JSX.Element {
     dispatch({ type: "video/loading" });
 
     try {
-      if (timestampPreviewUrl) {
-        URL.revokeObjectURL(timestampPreviewUrl);
-        setTimestampPreviewUrl(null);
-        setTimestampPreviewSec(null);
-      }
       assertSupportedVideo(file);
       const objectUrl = createVideoObjectUrl(file);
       nextObjectUrl = objectUrl;
@@ -314,9 +295,7 @@ export function App(): JSX.Element {
     fileInputRef.current?.click();
   };
 
-  const syncPreviewWithCurrentFrame = async (options?: {
-    updateInput?: boolean;
-  }): Promise<void> => {
+  const syncWithCurrentFrame = (): void => {
     const video = videoRef.current;
     if (!video) {
       return;
@@ -325,58 +304,11 @@ export function App(): JSX.Element {
     const currentTime = Number.isFinite(video.currentTime)
       ? Math.max(0, video.currentTime)
       : 0;
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => resolve());
-    });
-    await createTimestampPreview(currentTime);
     dispatch({
       type: "video/time-updated",
       payload: { currentTimeSec: currentTime },
     });
-
-    if (options?.updateInput) {
-      setTimestampInput(formatTimestamp(currentTime));
-    }
-  };
-
-  const createTimestampPreview = async (targetSec: number): Promise<void> => {
-    const video = videoRef.current;
-    if (!video || video.videoWidth <= 0 || video.videoHeight <= 0) {
-      return;
-    }
-
-    const maxWidth = 420;
-    const scale = Math.min(1, maxWidth / video.videoWidth);
-    const width = Math.max(1, Math.floor(video.videoWidth * scale));
-    const height = Math.max(1, Math.floor(video.videoHeight * scale));
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return;
-    }
-
-    ctx.drawImage(video, 0, 0, width, height);
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((value) => resolve(value), "image/jpeg", 0.88);
-    });
-
-    if (!blob) {
-      return;
-    }
-
-    const nextUrl = URL.createObjectURL(blob);
-    setTimestampPreviewUrl((previousUrl) => {
-      if (previousUrl) {
-        URL.revokeObjectURL(previousUrl);
-      }
-      return nextUrl;
-    });
-    setTimestampPreviewSec(targetSec);
+    setTimestampInput(formatTimestamp(currentTime));
   };
 
   const seekToTimestampInput = async (): Promise<void> => {
@@ -402,10 +334,6 @@ export function App(): JSX.Element {
         type: "video/time-updated",
         payload: { currentTimeSec: clampedTime },
       });
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => resolve());
-      });
-      await createTimestampPreview(clampedTime);
       setTimestampInput(formatTimestamp(clampedTime));
     } catch {
       dispatch({
@@ -430,21 +358,48 @@ export function App(): JSX.Element {
               Capture precise frames from local videos. No uploads. No tracking.
             </p>
           </div>
-          <label class="theme-switch">
-            <input
-              type="checkbox"
-              class="theme-switch__input"
-              checked={theme === "dark"}
-              onChange={() =>
-                setTheme((prev) => (prev === "light" ? "dark" : "light"))
-              }
-              aria-label="Toggle dark mode"
-            />
-            <span class="theme-switch__track" aria-hidden="true">
-              <span class="theme-switch__thumb" />
+          <button
+            type="button"
+            class="theme-icon-toggle"
+            onClick={() =>
+              setTheme((prev) => (prev === "light" ? "dark" : "light"))
+            }
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            <span class="theme-icon-toggle__sun icon-sm" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="4.2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M12 2.8V5.2M12 18.8V21.2M21.2 12H18.8M5.2 12H2.8M18.5 5.5L16.8 7.2M7.2 16.8L5.5 18.5M18.5 18.5L16.8 16.8M7.2 7.2L5.5 5.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
             </span>
-            <span class="theme-switch__text">Dark Mode</span>
-          </label>
+            <span class="theme-icon-toggle__moon icon-sm" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M14.2 3.4a8.8 8.8 0 1 0 6.4 14.8A9.2 9.2 0 0 1 14.2 3.4Z"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
         </div>
       </header>
 
@@ -560,10 +515,10 @@ export function App(): JSX.Element {
               preload="metadata"
               onTimeUpdate={onTimeUpdate}
               onPause={() => {
-                void syncPreviewWithCurrentFrame();
+                syncWithCurrentFrame();
               }}
               onEnded={() => {
-                void syncPreviewWithCurrentFrame();
+                syncWithCurrentFrame();
               }}
               aria-label="Video preview"
             />
@@ -636,44 +591,7 @@ export function App(): JSX.Element {
                     }
                   }}
                 />
-                <button
-                  type="button"
-                  class="timestamp-current-btn"
-                  aria-label="Use current frame timestamp"
-                  title="Use current frame"
-                  onClick={() => {
-                    void syncPreviewWithCurrentFrame({ updateInput: true });
-                  }}
-                >
-                  <span class="icon-sm" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M5.5 12A6.5 6.5 0 0 1 12 5.5h2M18.5 12A6.5 6.5 0 0 1 12 18.5H10"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                      />
-                      <path
-                        d="M14 3.8L17 5.5L14 7.2M10 20.2L7 18.5L10 16.8"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                      />
-                    </svg>
-                  </span>
-                </button>
               </div>
-              {timestampPreviewUrl && timestampPreviewSec !== null ? (
-                <figure class="frame-preview">
-                  <img
-                    class="frame-preview__image"
-                    src={timestampPreviewUrl}
-                    alt={`Frame preview at ${formatTimestamp(timestampPreviewSec)}`}
-                  />
-                  <figcaption class="meta frame-preview__caption">
-                    Preview at {formatTimestamp(timestampPreviewSec)}
-                  </figcaption>
-                </figure>
-              ) : null}
               <button
                 type="button"
                 class="btn-primary with-icon"
@@ -818,6 +736,33 @@ export function App(): JSX.Element {
           ) : null}
         </section>
       ) : null}
+
+      <footer class="app-footer" aria-label="App credits">
+        <p class="app-footer__text">
+          <span class="app-footer__item">
+            <span class="icon-sm app-footer__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 4.5a7.5 7.5 0 0 0-2.37 14.61c.38.07.51-.16.51-.37v-1.3c-2.08.45-2.52-.88-2.52-.88-.34-.86-.82-1.09-.82-1.09-.67-.46.05-.45.05-.45.74.05 1.14.75 1.14.75.66 1.12 1.73.8 2.15.61.07-.47.26-.8.47-.99-1.66-.19-3.4-.82-3.4-3.67 0-.81.29-1.47.76-1.99-.08-.19-.33-.95.07-1.98 0 0 .62-.2 2.03.76a7.02 7.02 0 0 1 3.7 0c1.4-.96 2.03-.76 2.03-.76.4 1.03.15 1.79.07 1.98.47.52.76 1.18.76 1.99 0 2.86-1.74 3.48-3.4 3.67.26.23.5.69.5 1.4v2.08c0 .21.14.45.52.37A7.5 7.5 0 0 0 12 4.5Z"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            Made by{" "}
+            <a
+              class="app-footer__link"
+              href="https://github.com/stever410"
+              target="_blank"
+              rel="noreferrer"
+            >
+              stever410
+            </a>
+            for my girlfriend, Orchix.
+          </span>
+        </p>
+      </footer>
     </main>
   );
 }

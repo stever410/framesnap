@@ -114,4 +114,5 @@ video {
     --switch-thumb-bg: #f2f2f7;
     --cta-primary: #0a84ff;
     --cta-primary-press: #0060df;
+    --text-muted: rgba(235, 235, 245, 0.7);
 }

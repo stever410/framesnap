@@ -187,6 +187,20 @@
   animation: soft-pop 360ms var(--motion-enter) 120ms both;
 }
 
+.brand-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-title__logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  box-shadow: 0 8px 18px rgb(10 132 255 / 30%);
+  flex: 0 0 auto;
+}
+
 .display {
   margin: 0;
   font-family: "Inter", "SF Pro Text", "Segoe UI", sans-serif;
@@ -692,6 +706,16 @@
 }
 
 @media (max-width: 680px) {
+  .brand-title {
+    gap: 8px;
+  }
+
+  .brand-title__logo {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+  }
+
   .video-stage__capture-overlay {
     top: 10px;
     right: 10px;

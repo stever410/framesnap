@@ -364,7 +364,17 @@ export function App(): JSX.Element {
       >
         <div class="hero-top">
           <div class="hero-headline">
-            <h1 class="display">FrameSnap</h1>
+            <div class="brand-title">
+              <img
+                class="brand-title__logo"
+                src="/favicon.svg"
+                alt=""
+                width="34"
+                height="34"
+                aria-hidden="true"
+              />
+              <h1 class="display">FrameSnap</h1>
+            </div>
             <p class="body hero-subtitle">
               Capture precise frames from local videos. No uploads. No tracking.
             </p>

@@ -1,0 +1,87 @@
+:root {
+  /* iOS semantic token layer (Light Mode first, web hex fallbacks). */
+  --ios-system-background: #ffffff;
+  --ios-system-grouped-background: #f2f2f7;
+  --ios-secondary-system-background: #f2f2f7;
+  --ios-tertiary-system-background: #ffffff;
+  --ios-opaque-separator: #c6c6c8;
+  --ios-system-gray6: #f2f2f7;
+
+  --ios-label: #000000;
+  --ios-secondary-label: rgba(60, 60, 67, 0.6);
+
+  --ios-system-blue: #007aff;
+  --ios-link: #007aff;
+  --ios-system-green: #34c759;
+  --ios-system-orange: #ff9500;
+  --ios-system-red: #ff3b30;
+
+  /* Required palette object mapping (60/30/10). */
+  --tokens-background-primary: var(--ios-system-background);
+  --tokens-background-grouped: var(--ios-system-grouped-background);
+  --tokens-surface-secondary: var(--ios-secondary-system-background);
+  --tokens-surface-tertiary: var(--ios-tertiary-system-background);
+  --tokens-separator-opaque: var(--ios-opaque-separator);
+  --tokens-accent-primary: var(--ios-system-blue);
+  --tokens-text-primary: var(--ios-label);
+  --tokens-text-secondary: var(--ios-secondary-label);
+
+  /* App aliases used by existing components. */
+  --bg-0: var(--tokens-background-primary);
+  --bg-1: var(--tokens-background-grouped);
+  --bg-2: var(--tokens-background-grouped);
+
+  --surface-0: var(--tokens-background-primary);
+  --surface-1: var(--tokens-surface-secondary);
+  --surface-2: var(--tokens-separator-opaque);
+
+  --accent-10: var(--tokens-accent-primary);
+  --accent-10-press: #0062cc;
+  --accent-10-soft: #5ac8fa;
+  --accent-amber: var(--ios-system-orange);
+
+  --text-primary: var(--tokens-text-primary);
+  --text-secondary: var(--tokens-text-secondary);
+  --text-muted: rgba(60, 60, 67, 0.45);
+  --text-on-cta: #ffffff;
+
+  --glass-fill: rgba(255, 255, 255, 0.72);
+  --glass-fill-strong: rgba(255, 255, 255, 0.9);
+  --glass-stroke: rgba(198, 198, 200, 0.7);
+  --glass-shadow: rgba(28, 28, 30, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.55);
+
+  --control-bg: rgba(255, 255, 255, 0.66);
+  --control-border: rgba(198, 198, 200, 0.95);
+  --chip-bg: rgba(255, 255, 255, 0.86);
+  --chip-border: rgba(198, 198, 200, 0.92);
+  --upload-dropzone-border: rgba(198, 198, 200, 0.92);
+  --upload-icon-bg: rgba(255, 255, 255, 0.94);
+  --upload-icon-border: rgba(198, 198, 200, 0.9);
+  --switch-track-bg: rgba(198, 198, 200, 0.5);
+  --switch-track-border: rgba(198, 198, 200, 0.95);
+  --switch-thumb-bg: #ffffff;
+
+  --cta-primary: var(--tokens-accent-primary);
+  --cta-primary-press: var(--accent-10-press);
+  --cta-danger: var(--ios-system-red);
+  --focus-ring: var(--accent-amber);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-card: 22px;
+  --radius-button: 14px;
+  --radius-input: 12px;
+
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-toast: 40;
+
+  --motion-enter: 220ms cubic-bezier(.2,.8,.2,1);
+  --motion-exit: 160ms ease-in;
+}

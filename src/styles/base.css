@@ -1,0 +1,117 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+  --bg-gradient: linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 56%, var(--bg-2) 100%);
+  --bg-glow-top-left: rgb(0 122 255 / 18%);
+  --bg-glow-top-right: rgb(90 200 250 / 15%);
+  --bg-glow-bottom: rgb(255 149 0 / 11%);
+  --bg-glow-mid: rgb(191 90 242 / 9%);
+  --bg-veil-top: rgb(255 255 255 / 34%);
+  --bg-veil-bottom: rgb(255 255 255 / 14%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-gradient: linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 56%, var(--bg-2) 100%);
+  --bg-glow-top-left: rgb(10 132 255 / 22%);
+  --bg-glow-top-right: rgb(48 209 88 / 14%);
+  --bg-glow-bottom: rgb(255 159 10 / 12%);
+  --bg-glow-mid: rgb(191 90 242 / 12%);
+  --bg-veil-top: rgb(44 44 46 / 34%);
+  --bg-veil-bottom: rgb(44 44 46 / 14%);
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  position: relative;
+  font-family: "Inter", "SF Pro Text", "Segoe UI", sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+body::before {
+  z-index: -2;
+  background:
+    radial-gradient(circle at 14% 10%, var(--bg-glow-top-left), transparent 38%),
+    radial-gradient(circle at 86% 12%, var(--bg-glow-top-right), transparent 36%),
+    radial-gradient(circle at 54% 96%, var(--bg-glow-bottom), transparent 38%),
+    radial-gradient(circle at 50% 48%, var(--bg-glow-mid), transparent 44%);
+  filter: blur(30px) saturate(112%);
+}
+
+body::after {
+  z-index: -1;
+  background: linear-gradient(165deg, var(--bg-veil-top), var(--bg-veil-bottom));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+img,
+video {
+  max-width: 100%;
+  display: block;
+}
+
+:root[data-theme="dark"] {
+    --ios-system-background: #000000;
+    --ios-system-grouped-background: #0f1012;
+    --ios-secondary-system-background: #15161a;
+    --ios-tertiary-system-background: #1d1f24;
+    --ios-opaque-separator: #2c2f36;
+    --ios-system-gray6: #121318;
+    --ios-label: #ffffff;
+    --ios-secondary-label: rgba(235, 235, 245, 0.6);
+    --ios-system-blue: #0a84ff;
+    --ios-link: #0a84ff;
+    --ios-system-green: #30d158;
+    --ios-system-orange: #ff9f0a;
+    --ios-system-red: #ff453a;
+    --text-on-cta: #ffffff;
+    --glass-fill: rgba(44, 44, 46, 0.64);
+    --glass-fill-strong: rgba(38, 40, 46, 0.88);
+    --glass-stroke: rgba(78, 82, 92, 0.48);
+    --glass-shadow: rgba(0, 0, 0, 0.5);
+    --glass-highlight: rgba(255, 255, 255, 0.08);
+
+    --control-bg: rgba(27, 29, 34, 0.84);
+    --control-border: rgba(78, 82, 92, 0.62);
+    --chip-bg: rgba(29, 32, 38, 0.84);
+    --chip-border: rgba(78, 82, 92, 0.62);
+    --upload-dropzone-border: rgba(78, 82, 92, 0.68);
+    --upload-icon-bg: rgba(35, 38, 44, 0.96);
+    --upload-icon-border: rgba(78, 82, 92, 0.62);
+    --switch-track-bg: rgba(78, 82, 92, 0.58);
+    --switch-track-border: rgba(99, 103, 114, 0.68);
+    --switch-thumb-bg: #f2f2f7;
+    --cta-primary: #0a84ff;
+    --cta-primary-press: #0060df;
+}

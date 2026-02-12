@@ -1,0 +1,17 @@
+{
+  "name": "FrameSnap",
+  "short_name": "FrameSnap",
+  "description": "Local-first video frame capture PWA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#06131a",
+  "theme_color": "#06131a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

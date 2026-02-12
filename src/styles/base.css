@@ -55,6 +55,8 @@ body::before {
     radial-gradient(circle at 54% 96%, var(--bg-glow-bottom), transparent 38%),
     radial-gradient(circle at 50% 48%, var(--bg-glow-mid), transparent 44%);
   filter: blur(30px) saturate(112%);
+  animation: bg-glow-cinematic 18s cubic-bezier(0.37, 0, 0.2, 1) infinite;
+  will-change: transform;
 }
 
 body::after {
@@ -62,6 +64,46 @@ body::after {
   background: linear-gradient(165deg, var(--bg-veil-top), var(--bg-veil-bottom));
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  animation: bg-veil-drift 16s ease-in-out infinite alternate;
+}
+
+@keyframes bg-glow-cinematic {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.9;
+  }
+
+  34% {
+    transform: translate3d(-1.3%, -1.2%, 0) scale(1.04) rotate(-1.2deg);
+    opacity: 1;
+  }
+
+  67% {
+    transform: translate3d(1.2%, -2.1%, 0) scale(1.06) rotate(1.6deg);
+    opacity: 0.95;
+  }
+
+  100% {
+    transform: translate3d(0.4%, -0.8%, 0) scale(1.02) rotate(0.4deg);
+    opacity: 0.88;
+  }
+}
+
+@keyframes bg-veil-drift {
+  0% {
+    opacity: 0.58;
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    opacity: 0.76;
+    transform: translate3d(0, -1.8%, 0);
+  }
+
+  100% {
+    opacity: 0.62;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 button,
@@ -115,4 +157,11 @@ video {
     --cta-primary: #0a84ff;
     --cta-primary-press: #0060df;
     --text-muted: rgba(235, 235, 245, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
 }

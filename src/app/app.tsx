@@ -23,6 +23,8 @@ export function App(): JSX.Element {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const timestampInputRef = useRef<HTMLInputElement | null>(null);
+  const isEditingTimestampRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -206,10 +208,18 @@ export function App(): JSX.Element {
       return;
     }
 
+    const currentTime = Number.isFinite(video.currentTime)
+      ? Math.max(0, video.currentTime)
+      : 0;
+
     dispatch({
       type: "video/time-updated",
-      payload: { currentTimeSec: video.currentTime },
+      payload: { currentTimeSec: currentTime },
     });
+
+    if (!isEditingTimestampRef.current) {
+      setTimestampInput(formatTimestamp(currentTime));
+    }
   };
 
   const onCapture = async (): Promise<void> => {
@@ -521,6 +531,9 @@ export function App(): JSX.Element {
               onEnded={() => {
                 syncWithCurrentFrame();
               }}
+              onSeeked={() => {
+                syncWithCurrentFrame();
+              }}
               aria-label="Video preview"
             />
           </div>
@@ -574,15 +587,20 @@ export function App(): JSX.Element {
               </label>
               <div class="timestamp-input-wrap">
                 <input
+                  ref={timestampInputRef}
                   id="timestamp-input"
                   class="timestamp-input"
                   value={timestampInput}
                   placeholder={currentTimestampLabel}
                   inputMode="decimal"
+                  onFocus={() => {
+                    isEditingTimestampRef.current = true;
+                  }}
                   onInput={(event) =>
                     setTimestampInput((event.target as HTMLInputElement).value)
                   }
                   onBlur={() => {
+                    isEditingTimestampRef.current = false;
                     void seekToTimestampInput();
                   }}
                   onKeyDown={(event) => {

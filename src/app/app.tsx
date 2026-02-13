@@ -522,8 +522,8 @@ export function App(): JSX.Element {
     <main
       class={
         hasVideo
-          ? "app-shell app-shell--video"
-          : "app-shell app-shell--upload-focus"
+          ? "app-shell app-shell--unified app-shell--video"
+          : "app-shell app-shell--unified app-shell--upload-focus"
       }
     >
       <header class="glass card hero hero--compact">

@@ -252,9 +252,9 @@ export async function captureFrameAt(video: HTMLVideoElement, targetSec: number)
   }
 
   try {
-    ctx.drawImage(video, 0, 0, width, height);
-    const outputCanvas = trimLetterboxBars(canvas);
-    const blob = await toBlob(outputCanvas, "image/png");
+    // Draw at native decoded frame size (no resampling).
+    ctx.drawImage(video, 0, 0);
+    const blob = await toBlob(canvas, "image/png");
     const file = new File([blob], `framesnap-${fileSafeTimestamp(clampedTarget)}.png`, {
       type: "image/png"
     });
@@ -262,8 +262,8 @@ export async function captureFrameAt(video: HTMLVideoElement, targetSec: number)
     return {
       blob,
       file,
-      width: outputCanvas.width,
-      height: outputCanvas.height,
+      width,
+      height,
       timestampSec: clampedTarget
     };
   } finally {

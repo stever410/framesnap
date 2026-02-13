@@ -475,7 +475,7 @@
 .video-stage__viewport {
   position: relative;
   overflow: hidden;
-  height: clamp(260px, 56dvh, 560px);
+  height: fit-content;
   border-radius: 18px;
   border: 1px solid var(--control-border);
   background: linear-gradient(
@@ -490,7 +490,7 @@
 .video-stage__media {
   border-radius: 16px;
   width: 100%;
-  height: 100%;
+  height: auto;
   min-height: 0;
   max-height: none;
   object-fit: contain;
@@ -927,7 +927,7 @@
 
 @media (min-width: 960px) {
   .video-stage__viewport {
-    height: clamp(320px, 60dvh, 640px);
+    height: fit-content;
   }
 }
 
@@ -960,7 +960,7 @@
   }
 
   .video-stage__viewport {
-    height: clamp(240px, 48dvh, 440px);
+    height: fit-content;
   }
 
   .hero {
@@ -1026,7 +1026,7 @@
 
 @media (max-width: 420px) {
   .video-stage__viewport {
-    height: clamp(220px, 44dvh, 380px);
+    height: fit-content;
   }
 
   .capture-modal,

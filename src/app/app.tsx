@@ -80,10 +80,19 @@ export function App(): JSX.Element {
       const iosStandalone = Boolean((navigator as IOSNavigator).standalone);
       return mediaStandalone || iosStandalone;
     };
+    const isAndroidMobile = (): boolean =>
+      isAndroid() && window.matchMedia("(max-width: 680px)").matches;
 
     setIsInstalled(detectStandalone());
 
     const onBeforeInstallPrompt = (event: Event): void => {
+      // Use native banner on Android mobile instead of custom deferred prompt.
+      if (isAndroidMobile()) {
+        setDeferredInstallPrompt(null);
+        setIsInstallEligible(false);
+        return;
+      }
+
       const installEvent = event as BeforeInstallPromptEvent;
       installEvent.preventDefault();
       setDeferredInstallPrompt(installEvent);
@@ -765,10 +774,7 @@ export function App(): JSX.Element {
         <section class="glass card video-stage">
           <div class="video-stage__header">
             <div class="video-stage__title-wrap">
-              <p class="video-stage__eyebrow">Ready to capture</p>
-              <p class="video-stage__filename">
-                {state.video.fileName ?? "Your video"}
-              </p>
+              <p class="video-stage__filename">Video Preview</p>
             </div>
             <button
               type="button"

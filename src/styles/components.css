@@ -750,9 +750,9 @@
   z-index: 60;
   display: grid;
   place-items: center;
-  padding: max(14px, env(safe-area-inset-top))
-    max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
-    max(14px, env(safe-area-inset-left));
+  padding: max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
   background: rgba(8, 10, 14, 0.42);
   backdrop-filter: blur(6px) saturate(120%);
   -webkit-backdrop-filter: blur(6px) saturate(120%);
@@ -760,11 +760,12 @@
 
 .capture-modal,
 .a2hs-modal {
-  width: min(560px, 100%);
-  max-height: min(88dvh, 760px);
-  overflow: auto;
+  width: min(440px, 100%);
+  max-height: none;
+  overflow: hidden;
   display: grid;
-  gap: var(--space-3);
+  gap: 8px;
+  padding: 12px;
   animation: card-enter 240ms var(--motion-enter) both;
 }
 
@@ -772,20 +773,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .capture-modal__title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 0.96rem;
   line-height: 1.25;
 }
 
 .modal-close {
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 10px;
   border: 1px solid var(--control-border);
   background: var(--control-bg);
   color: var(--text-primary);
@@ -795,13 +796,34 @@
 }
 
 .capture-modal__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .capture-modal__actions > button {
-  flex: 1 1 180px;
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+}
+
+.capture-modal .capture-image {
+  max-height: min(34dvh, 250px);
+  object-fit: contain;
+}
+
+.capture-modal .chip-row {
+  gap: 6px;
+}
+
+.capture-modal .chip {
+  padding: 4px 8px;
+  font-size: 0.76rem;
+}
+
+.capture-modal .meta {
+  margin: 0;
+  font-size: 0.78rem;
 }
 
 .a2hs-modal__steps {
@@ -984,7 +1006,11 @@
 
   .capture-modal,
   .a2hs-modal {
-    padding: var(--space-4);
+    padding: 10px;
+  }
+
+  .capture-modal__actions {
+    grid-template-columns: 1fr;
   }
 
   .app-shell--upload-focus .upload-card {

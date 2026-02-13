@@ -14,16 +14,28 @@ import { AppError, toUserMessage } from "../shared/errors";
 import { formatTimestamp, parseTimestampInput } from "../ui/format";
 
 export function App(): JSX.Element {
+  type BeforeInstallPromptEvent = Event & {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+  };
+  type IOSNavigator = Navigator & { standalone?: boolean };
+
   const [state, dispatch] = useReducer(reducer, initialState);
   const [timestampInput, setTimestampInput] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isCaptureModalOpen, setIsCaptureModalOpen] = useState(false);
+  const [isA2HSHelpOpen, setIsA2HSHelpOpen] = useState(false);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstallEligible, setIsInstallEligible] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [downloadState, setDownloadState] = useState<
     "idle" | "preparing" | "downloading"
   >("idle");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const timestampInputRef = useRef<HTMLInputElement | null>(null);
   const isEditingTimestampRef = useRef(false);
 
   useEffect(() => {
@@ -57,6 +69,63 @@ export function App(): JSX.Element {
   }, []);
 
   useEffect(() => {
+    const detectStandalone = (): boolean => {
+      const mediaStandalone = window.matchMedia(
+        "(display-mode: standalone)",
+      ).matches;
+      const iosStandalone = Boolean((navigator as IOSNavigator).standalone);
+      return mediaStandalone || iosStandalone;
+    };
+
+    setIsInstalled(detectStandalone());
+
+    const onBeforeInstallPrompt = (event: Event): void => {
+      const installEvent = event as BeforeInstallPromptEvent;
+      installEvent.preventDefault();
+      setDeferredInstallPrompt(installEvent);
+      setIsInstallEligible(true);
+    };
+
+    const onAppInstalled = (): void => {
+      setIsInstalled(true);
+      setIsInstallEligible(false);
+      setDeferredInstallPrompt(null);
+      setIsA2HSHelpOpen(false);
+    };
+
+    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    const onDisplayModeChange = (): void => {
+      if (detectStandalone()) {
+        onAppInstalled();
+      }
+    };
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    window.addEventListener("appinstalled", onAppInstalled);
+    mediaQuery.addEventListener("change", onDisplayModeChange);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", onAppInstalled);
+      mediaQuery.removeEventListener("change", onDisplayModeChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 680px)");
+    const onViewportChange = (): void => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    onViewportChange();
+    mediaQuery.addEventListener("change", onViewportChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", onViewportChange);
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       revokeVideoObjectUrl(state.video.objectUrl);
     };
@@ -65,6 +134,7 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (!state.capture.file) {
       setPreviewUrl(null);
+      setIsCaptureModalOpen(false);
       return;
     }
 
@@ -76,11 +146,39 @@ export function App(): JSX.Element {
     };
   }, [state.capture.file]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (isA2HSHelpOpen) {
+        setIsA2HSHelpOpen(false);
+        return;
+      }
+
+      if (isCaptureModalOpen) {
+        setIsCaptureModalOpen(false);
+        dispatch({ type: "capture/reset" });
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [dispatch, isA2HSHelpOpen, isCaptureModalOpen]);
+
   const currentTimestampLabel = useMemo(
     () => formatTimestamp(state.video.currentTimeSec),
     [state.video.currentTimeSec],
   );
   const hasVideo = state.video.objectUrl !== null;
+  const showInstallButton = !isInstalled && isInstallEligible;
+  const showAddToHomeScreenButton =
+    !isInstalled && state.capabilities.isIOS && !isInstallEligible;
+  const showMobileInstallFab = isMobileViewport && !isInstalled;
   const appVersion = __APP_VERSION__;
   const SEEK_TIMEOUT_MS = 3000;
 
@@ -244,6 +342,7 @@ export function App(): JSX.Element {
           timestampSec: result.timestampSec,
         },
       });
+      setIsCaptureModalOpen(true);
     } catch (error: unknown) {
       const code = error instanceof AppError ? error.code : "CAPTURE_FAILED";
       dispatch({
@@ -306,6 +405,41 @@ export function App(): JSX.Element {
     fileInputRef.current?.click();
   };
 
+  const closeCaptureModal = (): void => {
+    setIsCaptureModalOpen(false);
+    dispatch({ type: "capture/reset" });
+  };
+
+  const onCaptureAgain = (): void => {
+    closeCaptureModal();
+  };
+
+  const onInstallApp = async (): Promise<void> => {
+    if (!deferredInstallPrompt) {
+      return;
+    }
+
+    try {
+      await deferredInstallPrompt.prompt();
+      const choiceResult = await deferredInstallPrompt.userChoice;
+      if (choiceResult.outcome === "accepted") {
+        setIsInstalled(true);
+      }
+    } finally {
+      setDeferredInstallPrompt(null);
+      setIsInstallEligible(false);
+    }
+  };
+
+  const onMobileInstallFabPress = (): void => {
+    if (showInstallButton) {
+      void onInstallApp();
+      return;
+    }
+
+    setIsA2HSHelpOpen(true);
+  };
+
   const syncWithCurrentFrame = (): void => {
     const video = videoRef.current;
     if (!video) {
@@ -358,7 +492,7 @@ export function App(): JSX.Element {
   };
 
   return (
-    <main class="app-shell">
+    <main class={hasVideo ? "app-shell app-shell--video" : "app-shell app-shell--upload-focus"}>
       <header
         class={hasVideo ? "glass card hero hero--compact" : "glass card hero"}
       >
@@ -379,50 +513,122 @@ export function App(): JSX.Element {
               Capture precise frames from local videos. No uploads. No tracking.
             </p>
           </div>
+          <div class="hero-actions">
+            {!isMobileViewport && showInstallButton ? (
+              <button
+                type="button"
+                class="btn-secondary hero-install-btn"
+                onClick={() => {
+                  void onInstallApp();
+                }}
+              >
+                Install App
+              </button>
+            ) : null}
+            {!isMobileViewport && showAddToHomeScreenButton ? (
+              <button
+                type="button"
+                class="btn-secondary hero-install-btn"
+                onClick={() => setIsA2HSHelpOpen(true)}
+              >
+                Add to Home Screen
+              </button>
+            ) : null}
+            <button
+              type="button"
+              class="theme-icon-toggle"
+              onClick={() =>
+                setTheme((prev) => (prev === "light" ? "dark" : "light"))
+              }
+              aria-label={
+                theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              }
+              title={
+                theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              }
+            >
+              <span class="theme-icon-toggle__sun icon-sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="4.2"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                  <path
+                    d="M12 2.8V5.2M12 18.8V21.2M21.2 12H18.8M5.2 12H2.8M18.5 5.5L16.8 7.2M7.2 16.8L5.5 18.5M18.5 18.5L16.8 16.8M7.2 7.2L5.5 5.5"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </span>
+              <span class="theme-icon-toggle__moon icon-sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M14.2 3.4a8.8 8.8 0 1 0 6.4 14.8A9.2 9.2 0 0 1 14.2 3.4Z"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {showMobileInstallFab ? (
+        <div class="floating-install-wrap">
           <button
             type="button"
-            class="theme-icon-toggle"
-            onClick={() =>
-              setTheme((prev) => (prev === "light" ? "dark" : "light"))
-            }
+            class="floating-install-fab"
+            onClick={onMobileInstallFabPress}
             aria-label={
-              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              showInstallButton
+                ? "Install app"
+                : state.capabilities.isIOS
+                  ? "Add to Home Screen"
+                  : "Install app help"
             }
             title={
-              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              showInstallButton
+                ? "Install App"
+                : state.capabilities.isIOS
+                  ? "Add to Home Screen"
+                  : "Install App"
             }
           >
-            <span class="theme-icon-toggle__sun icon-sm" aria-hidden="true">
+            <span class="icon-sm" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="4.2"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                />
                 <path
-                  d="M12 2.8V5.2M12 18.8V21.2M21.2 12H18.8M5.2 12H2.8M18.5 5.5L16.8 7.2M7.2 16.8L5.5 18.5M18.5 18.5L16.8 16.8M7.2 7.2L5.5 5.5"
+                  d="M12 4V14"
                   stroke="currentColor"
                   stroke-width="1.8"
                   stroke-linecap="round"
                 />
-              </svg>
-            </span>
-            <span class="theme-icon-toggle__moon icon-sm" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
                 <path
-                  d="M14.2 3.4a8.8 8.8 0 1 0 6.4 14.8A9.2 9.2 0 0 1 14.2 3.4Z"
+                  d="M8.5 10.5L12 14L15.5 10.5"
                   stroke="currentColor"
                   stroke-width="1.8"
                   stroke-linecap="round"
-                  stroke-linejoin="round"
+                />
+                <rect
+                  x="5"
+                  y="15"
+                  width="14"
+                  height="4.5"
+                  rx="1.8"
+                  stroke="currentColor"
+                  stroke-width="1.8"
                 />
               </svg>
             </span>
           </button>
         </div>
-      </header>
+      ) : null}
 
       {state.error.message ? (
         <section class="error-banner" role="status" aria-live="polite">
@@ -455,33 +661,10 @@ export function App(): JSX.Element {
             class="upload-dropzone"
             onClick={onOpenVideoPicker}
           >
-            <span class="upload-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 4V15"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M8 8L12 4L16 8"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M4.5 15.5V17.5C4.5 18.6046 5.39543 19.5 6.5 19.5H17.5C18.6046 19.5 19.5 18.6046 19.5 17.5V15.5"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </span>
             <span class="upload-title">Drop your video here or browse</span>
             <span class="upload-subtitle">
               MP4, MOV, WebM. Processed locally on your device.
             </span>
-            <span class="upload-cta">Choose Video</span>
           </button>
           <p class="meta upload-meta">
             {state.video.fileName
@@ -494,12 +677,7 @@ export function App(): JSX.Element {
       {hasVideo ? (
         <section class="glass card video-stage">
           <div class="video-stage__header">
-            <p
-              class="video-stage__filename"
-              title={state.video.fileName ?? undefined}
-            >
-              {state.video.fileName ?? "Selected video"}
-            </p>
+            <p class="video-stage__filename">Your video</p>
             <button
               type="button"
               class="video-stage__change"
@@ -553,6 +731,12 @@ export function App(): JSX.Element {
               onClick={() => {
                 void onCapture();
               }}
+              aria-label={
+                state.phase === "capturing" ? "Capturing frame" : "Capture frame"
+              }
+              title={
+                state.phase === "capturing" ? "Capturing frame" : "Capture frame"
+              }
             >
               <span class="icon-sm" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
@@ -568,65 +752,19 @@ export function App(): JSX.Element {
                   <circle cx="12" cy="12" r="2.4" fill="currentColor" />
                 </svg>
               </span>
-              {state.phase === "capturing" ? "Capturing..." : "Capture Frame"}
             </button>
           </div>
 
           <div class="video-stage__controls">
             <div class="capture-controls">
-              <p class="meta video-stage__label with-icon">
-                <span class="icon-sm" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="8.5"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                    />
-                    <path
-                      d="M12 7.5V12L15 13.8"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linecap="round"
-                    />
-                  </svg>
-                </span>
-                Current time {currentTimestampLabel}
-              </p>
-              <label
-                class="meta video-stage__label with-icon"
-                htmlFor="timestamp-input"
-              >
-                <span class="icon-sm" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <rect
-                      x="4.5"
-                      y="6"
-                      width="15"
-                      height="12"
-                      rx="2.2"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                    />
-                    <path
-                      d="M8 10.5H16M8 14H13"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linecap="round"
-                    />
-                  </svg>
-                </span>
-                Enter timestamp (mm:ss.xxx)
-              </label>
               <div class="timestamp-input-wrap">
                 <input
-                  ref={timestampInputRef}
                   id="timestamp-input"
                   class="timestamp-input"
                   value={timestampInput}
                   placeholder={currentTimestampLabel}
                   inputMode="decimal"
+                  aria-label="Timestamp (mm:ss.xxx)"
                   onFocus={() => {
                     isEditingTimestampRef.current = true;
                   }}
@@ -650,30 +788,98 @@ export function App(): JSX.Element {
         </section>
       ) : null}
 
-      {previewUrl && state.capture.timestampSec !== null ? (
-        <section class="glass card capture-panel">
-          <img
-            class="capture-image"
-            src={previewUrl}
-            alt="Captured frame preview"
-          />
-          <div class="chip-row">
-            <span class="chip">
-              {formatTimestamp(state.capture.timestampSec)}
-            </span>
-            <span class="chip">
-              {state.capture.width} x {state.capture.height}
-            </span>
-          </div>
-
-          <div class="action-bar">
-            {state.capabilities.canShareFiles ? (
+      {isCaptureModalOpen && previewUrl && state.capture.timestampSec !== null ? (
+        <div
+          class="modal-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeCaptureModal();
+            }
+          }}
+        >
+          <section
+            class="glass card capture-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="capture-modal-title"
+          >
+            <div class="capture-modal__header">
+              <h2 id="capture-modal-title" class="capture-modal__title">
+                Captured Frame
+              </h2>
               <button
                 type="button"
-                class="btn-primary with-icon"
-                onClick={() => {
-                  void onShare();
-                }}
+                class="modal-close"
+                onClick={closeCaptureModal}
+                aria-label="Close captured frame preview"
+              >
+                <span class="icon-sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M7 7L17 17M17 7L7 17"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+              </button>
+            </div>
+            <img
+              class="capture-image"
+              src={previewUrl}
+              alt="Captured frame preview"
+            />
+            <div class="chip-row">
+              <span class="chip">{formatTimestamp(state.capture.timestampSec)}</span>
+              <span class="chip">
+                {state.capture.width} x {state.capture.height}
+              </span>
+            </div>
+
+            <div class="capture-modal__actions">
+              {state.capabilities.canShareFiles ? (
+                <button
+                  type="button"
+                  class="btn-primary with-icon"
+                  onClick={() => {
+                    void onShare();
+                  }}
+                >
+                  <span class="icon-sm" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 4V14"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        d="M8.5 7.5L12 4L15.5 7.5"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                      />
+                      <rect
+                        x="5"
+                        y="14.5"
+                        width="14"
+                        height="5"
+                        rx="1.8"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                      />
+                    </svg>
+                  </span>
+                  Share
+                </button>
+              ) : null}
+              <button
+                type="button"
+                class="btn-secondary with-icon"
+                onClick={onDownload}
+                disabled={downloadState !== "idle"}
               >
                 <span class="icon-sm" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none">
@@ -684,86 +890,112 @@ export function App(): JSX.Element {
                       stroke-linecap="round"
                     />
                     <path
-                      d="M8.5 7.5L12 4L15.5 7.5"
+                      d="M8.5 10.5L12 14L15.5 10.5"
                       stroke="currentColor"
                       stroke-width="1.8"
                       stroke-linecap="round"
                     />
                     <rect
                       x="5"
-                      y="14.5"
+                      y="15"
                       width="14"
-                      height="5"
+                      height="4.5"
                       rx="1.8"
                       stroke="currentColor"
                       stroke-width="1.8"
                     />
                   </svg>
                 </span>
-                Share
+                {downloadState === "idle"
+                  ? "Download"
+                  : downloadState === "preparing"
+                    ? "Preparing..."
+                    : "Downloading..."}
               </button>
-            ) : null}
-            <button
-              type="button"
-              class="btn-secondary with-icon"
-              onClick={onDownload}
-              disabled={downloadState !== "idle"}
-            >
-              <span class="icon-sm" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 4V14"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M8.5 10.5L12 14L15.5 10.5"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                  />
-                  <rect
-                    x="5"
-                    y="15"
-                    width="14"
-                    height="4.5"
-                    rx="1.8"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                  />
-                </svg>
-              </span>
-              {downloadState === "idle"
-                ? "Download"
-                : downloadState === "preparing"
-                  ? "Preparing..."
-                  : "Downloading..."}
-            </button>
-            <button
-              type="button"
-              class="btn-text with-icon"
-              onClick={() => dispatch({ type: "capture/reset" })}
-            >
-              <span class="icon-sm" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M6.5 12a5.5 5.5 0 1 0 1.3-3.5M6.5 8V4.8M6.5 8H9.7"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-              Capture Again
-            </button>
-          </div>
+              <button
+                type="button"
+                class="btn-text with-icon"
+                onClick={onCaptureAgain}
+              >
+                <span class="icon-sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M6.5 12a5.5 5.5 0 1 0 1.3-3.5M6.5 8V4.8M6.5 8H9.7"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                Capture Again
+              </button>
+            </div>
 
-          {state.capabilities.isIOS ? (
-            <p class="meta">On iPhone, tap Share and choose Save Image.</p>
-          ) : null}
-        </section>
+            {state.capabilities.isIOS ? (
+              <p class="meta">On iPhone, tap Share and choose Save Image.</p>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
+
+      {isA2HSHelpOpen ? (
+        <div
+          class="modal-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsA2HSHelpOpen(false);
+            }
+          }}
+        >
+          <section
+            class="glass card a2hs-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="a2hs-modal-title"
+          >
+            <div class="capture-modal__header">
+              <h2 id="a2hs-modal-title" class="capture-modal__title">
+                {state.capabilities.isIOS
+                  ? "Add FrameSnap to Home Screen"
+                  : "Install FrameSnap"}
+              </h2>
+              <button
+                type="button"
+                class="modal-close"
+                onClick={() => setIsA2HSHelpOpen(false)}
+                aria-label="Close add to home screen help"
+              >
+                <span class="icon-sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M7 7L17 17M17 7L7 17"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+              </button>
+            </div>
+            <ol class="a2hs-modal__steps">
+              {state.capabilities.isIOS ? (
+                <>
+                  <li>Tap the Share button in Safari.</li>
+                  <li>Scroll down and tap Add to Home Screen.</li>
+                  <li>Tap Add to install FrameSnap on your iPhone.</li>
+                </>
+              ) : (
+                <>
+                  <li>Open your browser menu.</li>
+                  <li>Tap Install App or Add to Home Screen.</li>
+                  <li>Confirm install to pin FrameSnap.</li>
+                </>
+              )}
+            </ol>
+          </section>
+        </div>
       ) : null}
 
       <footer class="app-footer" aria-label="App credits">

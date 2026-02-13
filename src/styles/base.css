@@ -27,16 +27,25 @@
 html,
 body {
   margin: 0;
+  width: 100%;
   min-height: 100%;
+  min-height: 100dvh;
 }
 
 body {
   position: relative;
+  min-height: 100%;
+  min-height: 100dvh;
   font-family: "Inter", "SF Pro Text", "Segoe UI", sans-serif;
   color: var(--text-primary);
   background: var(--bg-gradient);
   background-attachment: fixed;
   overflow-x: hidden;
+}
+
+#app {
+  min-height: 100%;
+  min-height: 100dvh;
 }
 
 body::before,

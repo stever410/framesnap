@@ -493,90 +493,86 @@ export function App(): JSX.Element {
 
   return (
     <main class={hasVideo ? "app-shell app-shell--video" : "app-shell app-shell--upload-focus"}>
-      <header
-        class={hasVideo ? "glass card hero hero--compact" : "glass card hero"}
-      >
-        <div class="hero-top">
-          <div class="hero-headline">
-            <div class="brand-title">
-              <img
-                class="brand-title__logo"
-                src="/favicon.svg"
-                alt=""
-                width="34"
-                height="34"
-                aria-hidden="true"
-              />
-              <h1 class="display">FrameSnap</h1>
-            </div>
-            <p class="body hero-subtitle">
-              Capture precise frames from local videos. No uploads. No tracking.
-            </p>
+      <header class="glass card hero hero--compact">
+        <div class="hero-headline">
+          <div class="brand-title">
+            <img
+              class="brand-title__logo"
+              src="/favicon.svg"
+              alt=""
+              width="34"
+              height="34"
+              aria-hidden="true"
+            />
+            <h1 class="display">FrameSnap</h1>
           </div>
-          <div class="hero-actions">
-            {!isMobileViewport && showInstallButton ? (
-              <button
-                type="button"
-                class="btn-secondary hero-install-btn"
-                onClick={() => {
-                  void onInstallApp();
-                }}
-              >
-                Install App
-              </button>
-            ) : null}
-            {!isMobileViewport && showAddToHomeScreenButton ? (
-              <button
-                type="button"
-                class="btn-secondary hero-install-btn"
-                onClick={() => setIsA2HSHelpOpen(true)}
-              >
-                Add to Home Screen
-              </button>
-            ) : null}
+          <p class="body hero-subtitle">
+            Capture precise frames from local videos. No uploads. No tracking.
+          </p>
+        </div>
+        <div class="hero-actions">
+          {!isMobileViewport && showInstallButton ? (
             <button
               type="button"
-              class="theme-icon-toggle"
-              onClick={() =>
-                setTheme((prev) => (prev === "light" ? "dark" : "light"))
-              }
-              aria-label={
-                theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-              }
-              title={
-                theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-              }
+              class="btn-secondary hero-install-btn"
+              onClick={() => {
+                void onInstallApp();
+              }}
             >
-              <span class="theme-icon-toggle__sun icon-sm" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="4.2"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                  />
-                  <path
-                    d="M12 2.8V5.2M12 18.8V21.2M21.2 12H18.8M5.2 12H2.8M18.5 5.5L16.8 7.2M7.2 16.8L5.5 18.5M18.5 18.5L16.8 16.8M7.2 7.2L5.5 5.5"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </span>
-              <span class="theme-icon-toggle__moon icon-sm" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M14.2 3.4a8.8 8.8 0 1 0 6.4 14.8A9.2 9.2 0 0 1 14.2 3.4Z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
+              Install App
             </button>
-          </div>
+          ) : null}
+          {!isMobileViewport && showAddToHomeScreenButton ? (
+            <button
+              type="button"
+              class="btn-secondary hero-install-btn"
+              onClick={() => setIsA2HSHelpOpen(true)}
+            >
+              Add to Home Screen
+            </button>
+          ) : null}
+          <button
+            type="button"
+            class="theme-icon-toggle"
+            onClick={() =>
+              setTheme((prev) => (prev === "light" ? "dark" : "light"))
+            }
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            <span class="theme-icon-toggle__sun icon-sm" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="4.2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M12 2.8V5.2M12 18.8V21.2M21.2 12H18.8M5.2 12H2.8M18.5 5.5L16.8 7.2M7.2 16.8L5.5 18.5M18.5 18.5L16.8 16.8M7.2 7.2L5.5 5.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            <span class="theme-icon-toggle__moon icon-sm" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M14.2 3.4a8.8 8.8 0 1 0 6.4 14.8A9.2 9.2 0 0 1 14.2 3.4Z"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
         </div>
       </header>
 

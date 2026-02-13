@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors";
 import { fileSafeTimestamp } from "../../ui/format";
+import type { CaptureUpscaleFactor } from "./types/capture-upscale.types";
 
 export type CaptureResult = {
   blob: Blob;
@@ -9,8 +10,6 @@ export type CaptureResult = {
   timestampSec: number;
 };
 
-export type CaptureUpscaleFactor = 1 | 1.5 | 2 | 3;
-export const CAPTURE_UPSCALE_FACTORS: CaptureUpscaleFactor[] = [1, 1.5, 2, 3];
 type CaptureOptions = {
   upscaleFactor?: CaptureUpscaleFactor;
 };
@@ -80,7 +79,9 @@ function nextAnimationFrame(): Promise<void> {
 
 async function waitForRenderedFrame(video: HTMLVideoElement): Promise<void> {
   const withFrameCallback = video as HTMLVideoElement & {
-    requestVideoFrameCallback?: (callback: (now: DOMHighResTimeStamp, metadata: unknown) => void) => number;
+    requestVideoFrameCallback?: (
+      callback: (now: DOMHighResTimeStamp, metadata: unknown) => void,
+    ) => number;
   };
 
   if (typeof withFrameCallback.requestVideoFrameCallback === "function") {
@@ -90,7 +91,7 @@ async function waitForRenderedFrame(video: HTMLVideoElement): Promise<void> {
       }),
       new Promise<void>((resolve) => {
         window.setTimeout(resolve, FRAME_READY_TIMEOUT_MS);
-      })
+      }),
     ]);
     if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
       return;
@@ -152,7 +153,7 @@ function colDarkRatio(data: Uint8ClampedArray, width: number, height: number, x:
   return total > 0 ? dark / total : 0;
 }
 
-function trimLetterboxBars(canvas: HTMLCanvasElement): HTMLCanvasElement {
+function _trimLetterboxBars(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const width = canvas.width;
   const height = canvas.height;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -226,7 +227,7 @@ function trimLetterboxBars(canvas: HTMLCanvasElement): HTMLCanvasElement {
     0,
     0,
     croppedWidth,
-    croppedHeight
+    croppedHeight,
   );
 
   return croppedCanvas;
@@ -237,10 +238,7 @@ function resolveUpscaleFactor(width: number, height: number, requestedFactor: nu
     return 1;
   }
 
-  const edgeLimitedFactor = Math.min(
-    MAX_UPSCALED_EDGE_PX / width,
-    MAX_UPSCALED_EDGE_PX / height
-  );
+  const edgeLimitedFactor = Math.min(MAX_UPSCALED_EDGE_PX / width, MAX_UPSCALED_EDGE_PX / height);
 
   if (!Number.isFinite(edgeLimitedFactor) || edgeLimitedFactor <= 1) {
     return 1;
@@ -274,7 +272,7 @@ function upscaleCanvas(sourceCanvas: HTMLCanvasElement, factor: number): HTMLCan
 export async function captureFrameAt(
   video: HTMLVideoElement,
   targetSec: number,
-  options?: CaptureOptions
+  options?: CaptureOptions,
 ): Promise<CaptureResult> {
   const duration = Number.isFinite(video.duration) ? video.duration : 0;
   const clampedTarget = Math.max(0, Math.min(targetSec, duration));
@@ -309,7 +307,7 @@ export async function captureFrameAt(
     const outputCanvas = upscaleCanvas(canvas, upscaleFactor);
     const blob = await toBlob(outputCanvas, "image/png");
     const file = new File([blob], `framesnap-${fileSafeTimestamp(clampedTarget)}.png`, {
-      type: "image/png"
+      type: "image/png",
     });
 
     return {
@@ -317,7 +315,7 @@ export async function captureFrameAt(
       file,
       width: outputCanvas.width,
       height: outputCanvas.height,
-      timestampSec: clampedTarget
+      timestampSec: clampedTarget,
     };
   } finally {
     if (shouldResumePlayback) {

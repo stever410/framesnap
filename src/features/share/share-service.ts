@@ -2,10 +2,7 @@ import { AppError } from "../../shared/errors";
 
 export type ShareResult = "shared" | "canceled" | "failed";
 
-export async function shareCapture(
-  file: File,
-  title: string,
-): Promise<ShareResult> {
+export async function shareCapture(file: File, title: string): Promise<ShareResult> {
   const nav = navigator as Navigator & {
     canShare?: (data?: ShareData) => boolean;
   };

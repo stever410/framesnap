@@ -1,11 +1,12 @@
-import type { AppAction, AppState } from "./types";
+import type { AppAction } from "./app-actions.types";
+import type { AppState } from "./app-state.types";
 
-export function reducer(state: AppState, action: AppAction): AppState {
+export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "app/bootstrap":
       return {
         ...state,
-        capabilities: action.payload
+        capabilities: action.payload,
       };
     case "video/loading":
       return {
@@ -16,8 +17,8 @@ export function reducer(state: AppState, action: AppAction): AppState {
           file: null,
           width: null,
           height: null,
-          timestampSec: null
-        }
+          timestampSec: null,
+        },
       };
     case "video/ready":
       return {
@@ -29,23 +30,23 @@ export function reducer(state: AppState, action: AppAction): AppState {
           durationSec: action.payload.durationSec,
           currentTimeSec: 0,
           width: action.payload.width,
-          height: action.payload.height
+          height: action.payload.height,
         },
-        error: { code: null, message: null }
+        error: { code: null, message: null },
       };
     case "video/time-updated":
       return {
         ...state,
         video: {
           ...state.video,
-          currentTimeSec: action.payload.currentTimeSec
-        }
+          currentTimeSec: action.payload.currentTimeSec,
+        },
       };
     case "capture/start":
       return {
         ...state,
         phase: "capturing",
-        error: { code: null, message: null }
+        error: { code: null, message: null },
       };
     case "capture/ready":
       return {
@@ -55,20 +56,8 @@ export function reducer(state: AppState, action: AppAction): AppState {
           file: action.payload.file,
           width: action.payload.width,
           height: action.payload.height,
-          timestampSec: action.payload.timestampSec
-        }
-      };
-    case "error/set":
-      return {
-        ...state,
-        phase: "error",
-        error: action.payload
-      };
-    case "error/clear":
-      return {
-        ...state,
-        phase: state.video.objectUrl ? "video_ready" : "idle",
-        error: { code: null, message: null }
+          timestampSec: action.payload.timestampSec,
+        },
       };
     case "capture/reset":
       return {
@@ -78,8 +67,28 @@ export function reducer(state: AppState, action: AppAction): AppState {
           file: null,
           width: null,
           height: null,
-          timestampSec: null
-        }
+          timestampSec: null,
+        },
+      };
+    case "error/set":
+      return {
+        ...state,
+        phase: "error",
+        error: action.payload,
+      };
+    case "error/clear":
+      return {
+        ...state,
+        phase: state.video.objectUrl ? "video_ready" : "idle",
+        error: { code: null, message: null },
+      };
+    case "install/state-updated":
+      return {
+        ...state,
+        install: {
+          ...state.install,
+          ...action.payload,
+        },
       };
     default:
       return state;

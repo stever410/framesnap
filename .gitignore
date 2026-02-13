@@ -28,3 +28,5 @@ Thumbs.db
 # local agent folders
 .agent/
 .agents/
+
+coverage/

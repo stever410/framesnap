@@ -1,0 +1,3 @@
+.install-help-modal {
+  width: clamp(280px, 92vw, 520px);
+}

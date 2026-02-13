@@ -1,4 +1,5 @@
 # FrameSnap
+![alt text](image.png)
 
 Local-first PWA to capture precise frames from local video files.
 
@@ -9,27 +10,28 @@ Local-first PWA to capture precise frames from local video files.
 
 ## Features
 
-- Import local video files (`mp4`, `mov`, `webm`, etc. if browser-supported)
-- Large video preview area with modern glass UI
-- Timestamp input (`mm:ss.xxx`) with seek-on-enter/blur
-- Capture current/target frame to image
-- Share captured frame (when `navigator.share` with files is supported)
-- Download fallback for unsupported share environments
-- Light/dark theme toggle with persistence
+- Import local video files (`mp4`, `mov`, `webm`, and browser-supported formats)
+- Video preview with timestamp input (`mm:ss.xxx`) and seek-on-enter/blur
+- Accurate frame capture with optional upscale factors (1x, 1.5x, 2x, 3x)
+- Share captured frame (`navigator.share` with file support)
+- Download fallback when sharing is unavailable
+- Light/dark theme toggle with local persistence
+- Locale switching (`en`, `vi`) with localized metadata/manifest
 - Installable PWA + service worker shell caching
 
 ## Tech Stack
 
-- Preact + TypeScript
+- Preact + TypeScript (strict)
 - Vite
+- Biome (lint + format validation)
+- Vitest + Testing Library (unit/component tests)
 - Custom Service Worker (`public/sw.js`)
-- CSS token system (`src/styles/tokens.css`, `src/styles/base.css`, `src/styles/components.css`)
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ (recommended)
+- Node.js 20+ (recommended for CI parity)
 - npm
 
 ### Install
@@ -44,72 +46,112 @@ npm install
 npm run dev
 ```
 
-### Typecheck
+## Scripts
 
 ```bash
-npm run typecheck
+npm run dev           # start local dev server
+npm run build         # typecheck build + vite production build
+npm run preview       # preview production build locally
+npm run typecheck     # TypeScript checks (no emit)
+npm run check         # Biome lint/format validation (no write)
+npm run check:write   # apply Biome safe fixes
+npm run format        # format files with Biome
+npm run lint          # lint files with Biome
+npm run test          # run all tests
+npm run test:watch    # run tests in watch mode
+npm run test:coverage # run tests with coverage report (80% min thresholds)
 ```
 
-### Build
+## Testing and Coverage
 
-```bash
-npm run build
-```
+- Test runner: Vitest (`jsdom`)
+- Coverage provider: V8
+- Global minimum thresholds are enforced in `vitest.config.ts`:
+  - statements: 80%
+  - branches: 80%
+  - functions: 80%
+  - lines: 80%
+- HTML coverage report output: `coverage/index.html`
 
-### Preview Production Build
+## CI/CD Workflows
 
-```bash
-npm run preview
-```
+Workflows are in `.github/workflows/`:
 
-## Usage Flow
+- `ci-quality.yml`
+  - Runs on every pull request and push to `main`
+  - Gates: `npm run check`, `npm run typecheck`, `npm run test`
+- `deploy-production.yml`
+  - Runs on version tags (`v*`) or manual dispatch
+  - Re-runs quality gates + build before deploy
+  - Deploys to Vercel production
+- `release-notes.yml`
+  - Handles release tagging/notes for version bumps
+  - Now includes the same quality gate before release job
 
-1. Open the app and choose a video file.
-2. Scrub video or type timestamp (`mm:ss.xxx`).
-3. Tap **Capture Frame** (overlay button on video).
-4. Use **Share** (if available) or **Download**.
-5. Use **Capture Again** to reset capture result.
+## Production Deployment
 
-## PWA + Update Behavior
+Primary target: Vercel.
+
+Required GitHub configuration:
+
+- Secrets:
+  - `VERCEL_TOKEN`
+- Repository variables:
+  - `VERCEL_ORG_ID`
+  - `VERCEL_PROJECT_ID`
+
+## PWA Update Behavior
 
 FrameSnap uses version-aware service worker registration:
 
 - `vite.config.ts` injects `__APP_VERSION__` from `package.json`
 - `src/main.tsx` registers `sw.js?v=<appVersion>`
-- `public/sw.js` uses that version in cache name (`framesnap-shell-<version>`)
+- `public/sw.js` uses versioned cache names (`framesnap-shell-<version>`)
 - Old caches are cleaned on activate
 
-### Releasing an Update
+## Architecture Snapshot
 
-1. Bump version:
-
-```bash
-npm version --no-git-tag-version patch
-```
-
-2. Build and deploy:
-
-```bash
-npm run build
-```
-
-Installed PWAs will pick up the new service worker and refresh to the latest build.
+- `AppStoreProvider`: reducer-based application state store
+- `AppControllerProvider`: composes feature hooks and exposes app-level controller context
+- Feature hooks/controllers:
+  - `use-video-controller`
+  - `use-capture-controller`
+  - `use-install-controller`
+  - `use-theme-preference`
+- UI components are presentation-focused and consume context instead of deep prop drilling
 
 ## Project Structure
 
 ```text
 src/
-  app/                # App UI, reducer, state flow
+  app/
+    app.tsx
+    providers/
+      app-store.provider.tsx
+      app-controller.provider.tsx
+    state/
+      app-actions.ts
+      app-actions.types.ts
+      app-initial-state.ts
+      app-reducer.ts
+      app-selectors.ts
+      app-state.types.ts
   features/
-    capture/          # Frame capture engine
-    share/            # Share/download helpers
-    video/            # Video validation/object URL helpers
-  platform/           # Capability detection
-  shared/             # Error models/mappers
-  styles/             # Tokens, base, component styles
-  ui/                 # Formatting helpers
+    capture/
+    install/
+    shell/
+    share/
+    video/
+  i18n/
+  platform/
+  shared/
+  styles/
+    tokens.css
+    base.css
+    components.css
+    utilities.css
+  ui/
 public/
-  manifest.webmanifest
   sw.js
   favicon.svg
 docs/
@@ -120,6 +162,5 @@ docs/
 
 ## Notes
 
-- iOS web apps cannot be Share Sheet targets like native extensions; FrameSnap supports sharing captured files out of the app when browser APIs allow it.
 - All media processing stays on-device in browser memory.
-
+- iOS web apps cannot behave like native share extensions; FrameSnap supports exporting captured files through supported browser APIs.

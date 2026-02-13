@@ -2,7 +2,10 @@ import { AppError } from "../../shared/errors";
 
 export type ShareResult = "shared" | "canceled" | "failed";
 
-export async function shareCapture(file: File): Promise<ShareResult> {
+export async function shareCapture(
+  file: File,
+  title: string,
+): Promise<ShareResult> {
   const nav = navigator as Navigator & {
     canShare?: (data?: ShareData) => boolean;
   };
@@ -16,7 +19,7 @@ export async function shareCapture(file: File): Promise<ShareResult> {
   }
 
   try {
-    await nav.share({ files: [file], title: "FrameSnap capture" });
+    await nav.share({ files: [file], title });
     return "shared";
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === "AbortError") {

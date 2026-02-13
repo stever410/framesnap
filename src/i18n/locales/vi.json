@@ -1,0 +1,83 @@
+{
+  "common": {
+    "languageSwitcherLabel": "Ngôn ngữ",
+    "switchToEnglish": "Tiếng Anh",
+    "switchToVietnamese": "Tiếng Việt",
+    "dismiss": "Bỏ qua",
+    "close": "Đóng"
+  },
+  "hero": {
+    "subtitle": "Trích xuất khung hình chuẩn xác từ video trên máy. Không tải lên. Không theo dõi. Chỉ có ảnh chất lượng nhất.",
+    "installApp": "Cài đặt",
+    "addToHomeScreen": "Thêm vào màn hình chính",
+    "switchToLight": "Giao diện sáng",
+    "switchToDark": "Giao diện tối"
+  },
+  "upload": {
+    "dropzoneTitle": "Chọn video hoặc thả tệp vào đây",
+    "dropzoneSubtitle": "Hỗ trợ MP4, MOV, WebM. Xử lý ngoại tuyến (offline).",
+    "currentFile": "Tệp đang chọn: {fileName}",
+    "noFile": "Chưa có video nào."
+  },
+  "video": {
+    "previewTitle": "Xem trước",
+    "changeVideo": "Chọn video khác",
+    "previewAria": "Trình phát video",
+    "timestampAria": "Mốc thời gian (phút:giây.mili)",
+    "captureFrame": "Chụp ảnh",
+    "capturingFrame": "Đang chụp..."
+  },
+  "captureModal": {
+    "title": "Ảnh đã chụp",
+    "closePreviewAria": "Đóng xem trước",
+    "imageAlt": "Ảnh trích xuất từ video",
+    "downloadSizeLabel": "Độ phân giải",
+    "upscaleOriginalOption": "Gốc (1x)",
+    "upscaleOption": "Phóng to ({factor}x)",
+    "upscaleNote": "Lưu ý: Phóng to giúp ảnh mượt hơn nhưng không làm tăng chi tiết thực tế của video gốc.",
+    "upscaleStatus": "Đang xử lý ảnh...",
+    "share": "Chia sẻ",
+    "download": "Tải về",
+    "preparing": "Đang chuẩn bị...",
+    "downloading": "Đang tải...",
+    "captureAgain": "Chụp lại",
+    "iosSaveHint": "Trên iPhone: Nhấn 'Chia sẻ' rồi chọn 'Lưu hình ảnh'.",
+    "shareTitle": "Ảnh từ FrameSnap",
+    "fileSizeFallback": "0 B"
+  },
+  "install": {
+    "mobileInstallTitle": "Cài đặt FrameSnap",
+    "installAria": "Cài đặt ứng dụng",
+    "addToHomeAria": "Thêm vào màn hình chính",
+    "installHelpAria": "Hướng dẫn cài đặt",
+    "modalTitleIOS": "Thêm FrameSnap vào màn hình chính",
+    "modalTitleDefault": "Cài đặt ứng dụng",
+    "closeHelpAria": "Đóng hướng dẫn",
+    "iosStep1": "Nhấn vào biểu tượng 'Chia sẻ' trên Safari.",
+    "iosStep2": "Chọn 'Thêm vào MH chính' từ menu.",
+    "iosStep3": "Nhấn 'Thêm' để hoàn tất cài đặt.",
+    "defaultStep1": "Mở menu trình duyệt (dấu 3 chấm).",
+    "defaultStep2": "Kéo xuống, chọn 'Cài đặt ứng dụng' hoặc 'Thêm vào Màn hình chính'.",
+    "defaultStep3": "Xác nhận để ghim FrameSnap ra màn hình."
+  },
+  "errors": {
+    "UNSUPPORTED_FORMAT": "Định dạng không hỗ trợ. Vui lòng dùng MP4, MOV hoặc WebM.",
+    "VIDEO_LOAD_FAILED": "Không thể tải video. Thử lại với tệp khác nhé.",
+    "SEEK_TIMEOUT": "Xử lý quá lâu. Hãy thử chọn mốc thời gian khác.",
+    "CAPTURE_FAILED": "Không thể chụp ảnh. Vui lòng thử lại.",
+    "SHARE_FAILED": "Lỗi chia sẻ. Bạn hãy thử dùng nút Tải về.",
+    "SHARE_UNAVAILABLE": "Thiết bị không hỗ trợ chia sẻ trực tiếp. Hãy dùng nút Tải về.",
+    "SEEK_INPUT_FAILED": "Mốc thời gian không hợp lệ hoặc không thể truy cập.",
+    "UNKNOWN": "Đã xảy ra lỗi không xác định. Thử lại sau nhé."
+  },
+  "footer": {
+    "ariaLabel": "Thông tin ứng dụng",
+    "version": "Phiên bản {version}",
+    "madeByPrefix": "Phát triển bởi",
+    "madeBySuffix": "dành tặng cho người yêu mình, Orchix."
+  },
+  "meta": {
+    "title": "FrameSnap - Chụp ảnh chất lượng cao từ video",
+    "description": "Trích xuất khung hình video cực nhanh, không cần upload, bảo mật tuyệt đối."
+  }
+}

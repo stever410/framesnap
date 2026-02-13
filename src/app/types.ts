@@ -1,4 +1,4 @@
-import type { AppErrorCode } from "../shared/errors";
+import type { ResolvedErrorCode } from "../shared/errors";
 
 export type AppPhase = "idle" | "loading_video" | "video_ready" | "capturing" | "capture_ready" | "error";
 
@@ -24,7 +24,7 @@ export type AppState = {
     isAndroid: boolean;
   };
   error: {
-    code: AppErrorCode | null;
+    code: ResolvedErrorCode | null;
     message: string | null;
   };
 };
@@ -51,7 +51,7 @@ export type AppAction =
       type: "capture/ready";
       payload: { file: File; width: number; height: number; timestampSec: number };
     }
-  | { type: "error/set"; payload: { code: AppErrorCode; message: string } }
+  | { type: "error/set"; payload: { code: ResolvedErrorCode; message: string } }
   | { type: "error/clear" }
   | { type: "capture/reset" };
 

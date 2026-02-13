@@ -1,0 +1,83 @@
+{
+  "name": "FrameSnap - Chụp ảnh chất lượng cao từ video",
+  "short_name": "FrameSnap",
+  "description": "Trích xuất khung hình video cực nhanh, không cần upload, bảo mật tuyệt đối.",
+  "id": "/?source=pwa",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "lang": "vi-VN",
+  "dir": "ltr",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "background_color": "#f2f2f7",
+  "theme_color": "#007aff",
+  "categories": ["photo", "video", "utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Chụp khung hình",
+      "short_name": "Chụp",
+      "description": "Mở FrameSnap và bắt đầu trích khung hình",
+      "url": "/?action=capture",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/framesnap-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Xem trước video và luồng chụp khung hình của FrameSnap"
+    },
+    {
+      "src": "/screenshots/framesnap-narrow.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Trải nghiệm chụp khung hình trên di động của FrameSnap"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "prefer_related_applications": false
+}

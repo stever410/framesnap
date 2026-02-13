@@ -14,21 +14,12 @@ export class AppError extends Error {
   }
 }
 
-export function toUserMessage(error: unknown): string {
+export type ResolvedErrorCode = AppErrorCode | "UNKNOWN";
+
+export function toErrorCode(error: unknown): ResolvedErrorCode {
   if (error instanceof AppError) {
-    switch (error.code) {
-      case "UNSUPPORTED_FORMAT":
-        return "Unsupported video format. Use MP4, MOV, or WebM.";
-      case "VIDEO_LOAD_FAILED":
-        return "Could not load the video. Please try another file.";
-      case "SEEK_TIMEOUT":
-        return "Seeking took too long. Try a nearby timestamp.";
-      case "CAPTURE_FAILED":
-        return "Capture failed. Try again.";
-      case "SHARE_FAILED":
-        return "Share failed. Use Download instead.";
-    }
+    return error.code;
   }
 
-  return "Something went wrong. Please try again.";
+  return "UNKNOWN";
 }

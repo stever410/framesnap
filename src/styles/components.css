@@ -272,6 +272,135 @@
   z-index: var(--z-base);
 }
 
+.locale-switch__flag {
+  width: 20px;
+  height: 14px;
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 14%);
+}
+
+.locale-switch__flag > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.locale-dropdown {
+  position: relative;
+}
+
+.locale-dropdown__trigger {
+  min-height: 40px;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--control-bg);
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+  list-style: none;
+  user-select: none;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+.locale-dropdown__trigger::-webkit-details-marker {
+  display: none;
+}
+
+.locale-dropdown__trigger:hover {
+  background: color-mix(in srgb, var(--control-bg) 70%, var(--surface-0));
+}
+
+.locale-dropdown[open] .locale-dropdown__trigger {
+  border-color: color-mix(in srgb, var(--cta-primary) 48%, var(--control-border));
+  box-shadow: 0 0 0 1px rgb(0 122 255 / 22%);
+}
+
+.locale-dropdown__trigger:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.locale-dropdown__value {
+  min-width: 2.2ch;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.locale-dropdown__chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+  transition: transform 160ms ease;
+}
+
+.locale-dropdown[open] .locale-dropdown__chevron {
+  transform: rotate(180deg);
+}
+
+.locale-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 120px;
+  border-radius: 12px;
+  border: 1px solid var(--control-border);
+  background: color-mix(in srgb, var(--surface-0) 85%, var(--glass-fill-strong));
+  box-shadow:
+    0 8px 22px rgb(15 23 42 / 16%),
+    inset 0 1px 0 rgb(255 255 255 / 45%);
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+  z-index: calc(var(--z-sticky) + 1);
+}
+
+.locale-dropdown__option {
+  min-height: 40px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+  cursor: pointer;
+  font: inherit;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.locale-dropdown__option:hover {
+  background: color-mix(in srgb, var(--cta-primary) 14%, var(--control-bg));
+}
+
+.locale-dropdown__option.is-active {
+  background: color-mix(in srgb, var(--cta-primary) 22%, var(--control-bg));
+  box-shadow: 0 0 0 1px rgb(0 122 255 / 20%);
+}
+
+.locale-dropdown__option:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.locale-dropdown__option-code {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
 .hero-headline {
   display: grid;
   gap: var(--space-2);
@@ -890,6 +1019,11 @@
   animation: card-enter 240ms var(--motion-enter) both;
 }
 
+.a2hs-modal {
+  padding: clamp(16px, 3.4vw, 22px);
+  gap: 14px;
+}
+
 .capture-modal__header {
   display: flex;
   align-items: center;
@@ -949,10 +1083,11 @@
 
 .a2hs-modal__steps {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 1.2rem;
   color: var(--text-secondary);
   display: grid;
-  gap: var(--space-2);
+  gap: 10px;
+  line-height: 1.55;
 }
 
 .app-footer {
@@ -993,6 +1128,15 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.app-footer__item--language {
+  gap: 10px;
+}
+
+.app-footer__label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
 }
 
 .app-footer__icon {
@@ -1072,6 +1216,7 @@
     justify-content: flex-end;
     width: auto;
     flex: 0 0 auto;
+    gap: 6px;
   }
 
   .hero-headline {
@@ -1086,6 +1231,11 @@
   .hero-install-btn {
     font-size: 0.8rem;
     padding: 0 12px;
+  }
+
+  .locale-dropdown__trigger {
+    min-height: 36px;
+    padding: 0 8px;
   }
 
   .hero-subtitle {
@@ -1128,6 +1278,11 @@
   .capture-modal,
   .a2hs-modal {
     padding: 10px;
+  }
+
+  .a2hs-modal {
+    padding: 14px;
+    gap: 10px;
   }
 
   .capture-modal__actions {

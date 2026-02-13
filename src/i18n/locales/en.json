@@ -1,0 +1,83 @@
+{
+  "common": {
+    "languageSwitcherLabel": "App language",
+    "switchToEnglish": "Switch language to English",
+    "switchToVietnamese": "Switch language to Vietnamese",
+    "dismiss": "Dismiss",
+    "close": "Close"
+  },
+  "hero": {
+    "subtitle": "Extract precise frames from your local videos instantly. No uploads. No tracking. Just the perfect shot.",
+    "installApp": "Install App",
+    "addToHomeScreen": "Add to Home Screen",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
+  "upload": {
+    "dropzoneTitle": "Drop your video here or browse",
+    "dropzoneSubtitle": "MP4, MOV, WebM. Processed locally on your device.",
+    "currentFile": "Current file: {fileName}",
+    "noFile": "No file selected yet."
+  },
+  "video": {
+    "previewTitle": "Video Preview",
+    "changeVideo": "Change Video",
+    "previewAria": "Video preview",
+    "timestampAria": "Timestamp (mm:ss.xxx)",
+    "captureFrame": "Capture frame",
+    "capturingFrame": "Capturing frame"
+  },
+  "captureModal": {
+    "title": "Captured Frame",
+    "closePreviewAria": "Close captured frame preview",
+    "imageAlt": "Captured frame preview",
+    "downloadSizeLabel": "Download size",
+    "upscaleOriginalOption": "Original (1x)",
+    "upscaleOption": "Upscaled ({factor}x)",
+    "upscaleNote": "Upscale increases output dimensions for export. It may look smoother but does not add real detail.",
+    "upscaleStatus": "Updating captured frame...",
+    "share": "Share",
+    "download": "Download",
+    "preparing": "Preparing...",
+    "downloading": "Downloading...",
+    "captureAgain": "Capture Again",
+    "iosSaveHint": "On iPhone, tap Share and choose Save Image.",
+    "shareTitle": "FrameSnap capture",
+    "fileSizeFallback": "0 B"
+  },
+  "install": {
+    "mobileInstallTitle": "Install FrameSnap",
+    "installAria": "Install app",
+    "addToHomeAria": "Add to Home Screen",
+    "installHelpAria": "Install app help",
+    "modalTitleIOS": "Add FrameSnap to Home Screen",
+    "modalTitleDefault": "Install FrameSnap",
+    "closeHelpAria": "Close add to home screen help",
+    "iosStep1": "Tap the Share button in Safari.",
+    "iosStep2": "Scroll down and tap Add to Home Screen.",
+    "iosStep3": "Tap Add to install FrameSnap on your iPhone.",
+    "defaultStep1": "Open your browser menu.",
+    "defaultStep2": "Tap Install App or Add to Home Screen.",
+    "defaultStep3": "Confirm install to pin FrameSnap."
+  },
+  "errors": {
+    "UNSUPPORTED_FORMAT": "Unsupported video format. Use MP4, MOV, or WebM.",
+    "VIDEO_LOAD_FAILED": "Could not load the video. Please try another file.",
+    "SEEK_TIMEOUT": "Seeking took too long. Try a nearby timestamp.",
+    "CAPTURE_FAILED": "Capture failed. Try again.",
+    "SHARE_FAILED": "Share failed. Use Download instead.",
+    "SHARE_UNAVAILABLE": "Share is unavailable. Use Download instead.",
+    "SEEK_INPUT_FAILED": "Could not seek to that timestamp. Try a nearby value.",
+    "UNKNOWN": "Something went wrong. Please try again."
+  },
+  "footer": {
+    "ariaLabel": "App credits",
+    "version": "FrameSnap v{version}",
+    "madeByPrefix": "Made by",
+    "madeBySuffix": "for my girlfriend, Orchix."
+  },
+  "meta": {
+    "title": "FrameSnap - Local Video Frame Capture",
+    "description": "FrameSnap captures precise frames from local videos on-device. No uploads. No tracking."
+  }
+}

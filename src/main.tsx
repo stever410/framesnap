@@ -1,5 +1,6 @@
 import { render } from "preact";
 import { App } from "./app/app";
+import { I18nProvider } from "./i18n";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/components.css";
@@ -72,4 +73,9 @@ if (!root) {
   throw new Error("Root element #app not found");
 }
 
-render(<App />, root);
+render(
+  <I18nProvider>
+    <App />
+  </I18nProvider>,
+  root,
+);

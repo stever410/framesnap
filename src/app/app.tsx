@@ -14,7 +14,8 @@ import {
   type CaptureUpscaleFactor,
 } from "../features/capture/capture-engine";
 import { downloadCapture, shareCapture } from "../features/share/share-service";
-import { AppError, toUserMessage } from "../shared/errors";
+import { useI18n } from "../i18n";
+import { AppError, toErrorCode, type ResolvedErrorCode } from "../shared/errors";
 import {
   formatFileSize,
   formatTimestamp,
@@ -48,8 +49,10 @@ export function App(): JSX.Element {
   const [captureUpscaleFactor, setCaptureUpscaleFactor] =
     useState<CaptureUpscaleFactor>(1);
   const [isApplyingUpscale, setIsApplyingUpscale] = useState(false);
+  const { locale, setLocale, t } = useI18n();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const localeDropdownRef = useRef<HTMLDetailsElement | null>(null);
   const isEditingTimestampRef = useRef(false);
 
   useEffect(() => {
@@ -176,6 +179,11 @@ export function App(): JSX.Element {
         return;
       }
 
+      if (localeDropdownRef.current?.hasAttribute("open")) {
+        localeDropdownRef.current.removeAttribute("open");
+        return;
+      }
+
       if (isA2HSHelpOpen) {
         setIsA2HSHelpOpen(false);
         return;
@@ -193,6 +201,26 @@ export function App(): JSX.Element {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [dispatch, isA2HSHelpOpen, isCaptureModalOpen]);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent): void => {
+      const dropdown = localeDropdownRef.current;
+      if (!dropdown || !dropdown.hasAttribute("open")) {
+        return;
+      }
+
+      const target = event.target;
+      if (target instanceof Node && !dropdown.contains(target)) {
+        dropdown.removeAttribute("open");
+      }
+    };
+
+    window.addEventListener("pointerdown", onPointerDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, []);
 
   const currentTimestampLabel = useMemo(
     () => formatTimestamp(state.video.currentTimeSec),
@@ -219,6 +247,45 @@ export function App(): JSX.Element {
     !state.capabilities.isAndroid;
   const appVersion = __APP_VERSION__;
   const SEEK_TIMEOUT_MS = 3000;
+  const getErrorMessage = (code: ResolvedErrorCode): string => {
+    switch (code) {
+      case "UNSUPPORTED_FORMAT":
+      case "VIDEO_LOAD_FAILED":
+      case "SEEK_TIMEOUT":
+      case "CAPTURE_FAILED":
+      case "SHARE_FAILED":
+      case "UNKNOWN":
+        return t(`errors.${code}`);
+      default:
+        return t("errors.UNKNOWN");
+    }
+  };
+  const themeToggleLabel =
+    theme === "dark" ? t("hero.switchToLight") : t("hero.switchToDark");
+  const currentLocaleCode = locale === "en" ? "EN" : "VI";
+
+  const onSelectLocale = (nextLocale: "en" | "vi"): void => {
+    setLocale(nextLocale);
+    localeDropdownRef.current?.removeAttribute("open");
+  };
+
+  const renderLocaleFlag = (targetLocale: "en" | "vi"): JSX.Element =>
+    targetLocale === "en" ? (
+      <svg viewBox="0 0 36 24" fill="none">
+        <rect width="36" height="24" rx="3" fill="#B22234" />
+        <path d="M0 4H36V6.5H0V4ZM0 9H36V11.5H0V9ZM0 14H36V16.5H0V14ZM0 19H36V21.5H0V19Z" fill="#FFF" />
+        <rect width="15.5" height="12.5" rx="2" fill="#3C3B6E" />
+        <path d="M3.2 3.2H4.2V4.2H3.2V3.2ZM6.2 3.2H7.2V4.2H6.2V3.2ZM9.2 3.2H10.2V4.2H9.2V3.2ZM12.2 3.2H13.2V4.2H12.2V3.2ZM4.7 5.6H5.7V6.6H4.7V5.6ZM7.7 5.6H8.7V6.6H7.7V5.6ZM10.7 5.6H11.7V6.6H10.7V5.6ZM3.2 8H4.2V9H3.2V8ZM6.2 8H7.2V9H6.2V8ZM9.2 8H10.2V9H9.2V8ZM12.2 8H13.2V9H12.2V8Z" fill="#FFF" />
+      </svg>
+    ) : (
+      <svg viewBox="0 0 36 24" fill="none">
+        <rect width="36" height="24" rx="3" fill="#DA251D" />
+        <path
+          d="M18 6.2L19.88 11.22H25.16L20.86 14.36L22.52 19.4L18 16.28L13.48 19.4L15.14 14.36L10.84 11.22H16.12L18 6.2Z"
+          fill="#FFDE00"
+        />
+      </svg>
+    );
 
   const loadVideoMetadata = (
     url: string,
@@ -325,12 +392,12 @@ export function App(): JSX.Element {
       setTimestampInput("");
     } catch (error: unknown) {
       revokeVideoObjectUrl(nextObjectUrl);
-      const code = error instanceof AppError ? error.code : "VIDEO_LOAD_FAILED";
+      const code = toErrorCode(error);
       dispatch({
         type: "error/set",
         payload: {
           code,
-          message: toUserMessage(error),
+          message: getErrorMessage(code),
         },
       });
     } finally {
@@ -384,12 +451,12 @@ export function App(): JSX.Element {
       });
       setIsCaptureModalOpen(true);
     } catch (error: unknown) {
-      const code = error instanceof AppError ? error.code : "CAPTURE_FAILED";
+      const code = toErrorCode(error);
       dispatch({
         type: "error/set",
         payload: {
           code,
-          message: toUserMessage(error),
+          message: getErrorMessage(code),
         },
       });
     }
@@ -432,12 +499,12 @@ export function App(): JSX.Element {
         },
       });
     } catch (error: unknown) {
-      const code = error instanceof AppError ? error.code : "CAPTURE_FAILED";
+      const code = toErrorCode(error);
       dispatch({
         type: "error/set",
         payload: {
           code,
-          message: toUserMessage(error),
+          message: getErrorMessage(code),
         },
       });
     } finally {
@@ -451,22 +518,26 @@ export function App(): JSX.Element {
     }
 
     try {
-      const result = await shareCapture(state.capture.file);
+      const result = await shareCapture(
+        state.capture.file,
+        t("captureModal.shareTitle"),
+      );
       if (result === "failed") {
         dispatch({
           type: "error/set",
           payload: {
             code: "SHARE_FAILED",
-            message: "Share is unavailable. Use Download instead.",
+            message: t("errors.SHARE_UNAVAILABLE"),
           },
         });
       }
     } catch (error: unknown) {
+      const code = toErrorCode(error);
       dispatch({
         type: "error/set",
         payload: {
-          code: "SHARE_FAILED",
-          message: toUserMessage(error),
+          code,
+          message: getErrorMessage(code),
         },
       });
     }
@@ -575,7 +646,7 @@ export function App(): JSX.Element {
         type: "error/set",
         payload: {
           code: "SEEK_TIMEOUT",
-          message: "Could not seek to that timestamp. Try a nearby value.",
+          message: t("errors.SEEK_INPUT_FAILED"),
         },
       });
     }
@@ -603,7 +674,7 @@ export function App(): JSX.Element {
             <h1 class="display">FrameSnap</h1>
           </div>
           <p class="body hero-subtitle">
-            Capture precise frames from local videos. No uploads. No tracking.
+            {t("hero.subtitle")}
           </p>
         </div>
         <div class="hero-actions">
@@ -641,7 +712,7 @@ export function App(): JSX.Element {
                   />
                 </svg>
               </span>
-              Install App
+              {t("hero.installApp")}
             </button>
           ) : null}
           {showDesktopAddToHomeScreenButton ? (
@@ -650,7 +721,7 @@ export function App(): JSX.Element {
               class="btn-secondary hero-install-btn"
               onClick={() => setIsA2HSHelpOpen(true)}
             >
-              Add to Home Screen
+              {t("hero.addToHomeScreen")}
             </button>
           ) : null}
           <button
@@ -659,12 +730,8 @@ export function App(): JSX.Element {
             onClick={() =>
               setTheme((prev) => (prev === "light" ? "dark" : "light"))
             }
-            aria-label={
-              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-            }
-            title={
-              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-            }
+            aria-label={themeToggleLabel}
+            title={themeToggleLabel}
           >
             <span class="theme-icon-toggle__sun icon-sm" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
@@ -700,7 +767,7 @@ export function App(): JSX.Element {
 
       {showMobileAndroidInstallCard ? (
         <section class="glass card mobile-install-card">
-          <p class="mobile-install-card__title">Install FrameSnap</p>
+          <p class="mobile-install-card__title">{t("install.mobileInstallTitle")}</p>
           <button
             type="button"
             class="btn-primary with-icon mobile-install-card__button"
@@ -734,7 +801,7 @@ export function App(): JSX.Element {
                 />
               </svg>
             </span>
-            Install App
+            {t("hero.installApp")}
           </button>
         </section>
       ) : null}
@@ -747,17 +814,17 @@ export function App(): JSX.Element {
             onClick={onMobileInstallFabPress}
             aria-label={
               showInstallButton
-                ? "Install app"
+                ? t("install.installAria")
                 : state.capabilities.isIOS
-                  ? "Add to Home Screen"
-                  : "Install app help"
+                  ? t("install.addToHomeAria")
+                  : t("install.installHelpAria")
             }
             title={
               showInstallButton
-                ? "Install App"
+                ? t("hero.installApp")
                 : state.capabilities.isIOS
-                  ? "Add to Home Screen"
-                  : "Install App"
+                  ? t("hero.addToHomeScreen")
+                  : t("hero.installApp")
             }
           >
             <span class="icon-sm" aria-hidden="true">
@@ -797,7 +864,7 @@ export function App(): JSX.Element {
             class="btn-secondary"
             onClick={() => dispatch({ type: "error/clear" })}
           >
-            Dismiss
+            {t("common.dismiss")}
           </button>
         </section>
       ) : null}
@@ -820,15 +887,15 @@ export function App(): JSX.Element {
             class="upload-dropzone"
             onClick={onOpenVideoPicker}
           >
-            <span class="upload-title">Drop your video here or browse</span>
+            <span class="upload-title">{t("upload.dropzoneTitle")}</span>
             <span class="upload-subtitle">
-              MP4, MOV, WebM. Processed locally on your device.
+              {t("upload.dropzoneSubtitle")}
             </span>
           </button>
           <p class="meta upload-meta">
             {state.video.fileName
-              ? `Current file: ${state.video.fileName}`
-              : "No file selected yet."}
+              ? t("upload.currentFile", { fileName: state.video.fileName })
+              : t("upload.noFile")}
           </p>
         </section>
       ) : null}
@@ -837,7 +904,7 @@ export function App(): JSX.Element {
         <section class="glass card video-stage">
           <div class="video-stage__header">
             <div class="video-stage__title-wrap">
-              <p class="video-stage__filename">Video Preview</p>
+              <p class="video-stage__filename">{t("video.previewTitle")}</p>
             </div>
             <button
               type="button"
@@ -861,7 +928,7 @@ export function App(): JSX.Element {
                   />
                 </svg>
               </span>
-              Change Video
+              {t("video.changeVideo")}
             </button>
           </div>
 
@@ -883,7 +950,7 @@ export function App(): JSX.Element {
               onSeeked={() => {
                 syncWithCurrentFrame();
               }}
-              aria-label="Video preview"
+              aria-label={t("video.previewAria")}
             />
             <button
               type="button"
@@ -894,13 +961,13 @@ export function App(): JSX.Element {
               }}
               aria-label={
                 state.phase === "capturing"
-                  ? "Capturing frame"
-                  : "Capture frame"
+                  ? t("video.capturingFrame")
+                  : t("video.captureFrame")
               }
               title={
                 state.phase === "capturing"
-                  ? "Capturing frame"
-                  : "Capture frame"
+                  ? t("video.capturingFrame")
+                  : t("video.captureFrame")
               }
             >
               <span class="icon-sm" aria-hidden="true">
@@ -942,7 +1009,7 @@ export function App(): JSX.Element {
                   value={timestampInput}
                   placeholder={currentTimestampLabel}
                   inputMode="decimal"
-                  aria-label="Timestamp (mm:ss.xxx)"
+                  aria-label={t("video.timestampAria")}
                   onFocus={() => {
                     isEditingTimestampRef.current = true;
                   }}
@@ -986,13 +1053,13 @@ export function App(): JSX.Element {
           >
             <div class="capture-modal__header">
               <h2 id="capture-modal-title" class="capture-modal__title">
-                Captured Frame
+                {t("captureModal.title")}
               </h2>
               <button
                 type="button"
                 class="modal-close"
                 onClick={closeCaptureModal}
-                aria-label="Close captured frame preview"
+                aria-label={t("captureModal.closePreviewAria")}
               >
                 <span class="icon-sm" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none">
@@ -1009,7 +1076,7 @@ export function App(): JSX.Element {
             <img
               class="capture-image"
               src={previewUrl}
-              alt="Captured frame preview"
+              alt={t("captureModal.imageAlt")}
             />
             <div class="chip-row">
               <span class="chip">
@@ -1021,13 +1088,13 @@ export function App(): JSX.Element {
               <span class="chip">
                 {state.capture.file
                   ? formatFileSize(state.capture.file.size)
-                  : "0 B"}
+                  : t("captureModal.fileSizeFallback")}
               </span>
             </div>
             <div class="capture-upscale-panel">
               <div class="capture-output-wrap">
                 <label class="capture-output-label" htmlFor="upscale-select">
-                  Download size
+                  {t("captureModal.downloadSizeLabel")}
                 </label>
                 <select
                   id="upscale-select"
@@ -1046,18 +1113,19 @@ export function App(): JSX.Element {
                   {CAPTURE_UPSCALE_FACTORS.map((factor) => (
                     <option key={factor} value={factor}>
                       {factor === 1
-                        ? "Original (1x)"
-                        : `Upscaled (${factor}x)`}
+                        ? t("captureModal.upscaleOriginalOption")
+                        : t("captureModal.upscaleOption", { factor })}
                     </option>
                   ))}
                 </select>
               </div>
               <p class="capture-upscale-note">
-                Upscale increases output dimensions for export. It may look
-                smoother but does not add real detail.
+                {t("captureModal.upscaleNote")}
               </p>
               {isApplyingUpscale ? (
-                <p class="capture-upscale-status">Updating captured frame...</p>
+                <p class="capture-upscale-status">
+                  {t("captureModal.upscaleStatus")}
+                </p>
               ) : null}
             </div>
 
@@ -1095,7 +1163,7 @@ export function App(): JSX.Element {
                       />
                     </svg>
                   </span>
-                  Share
+                  {t("captureModal.share")}
                 </button>
               ) : null}
               <button
@@ -1130,10 +1198,10 @@ export function App(): JSX.Element {
                   </svg>
                 </span>
                 {downloadState === "idle"
-                  ? "Download"
+                  ? t("captureModal.download")
                   : downloadState === "preparing"
-                    ? "Preparing..."
-                    : "Downloading..."}
+                    ? t("captureModal.preparing")
+                    : t("captureModal.downloading")}
               </button>
               <button
                 type="button"
@@ -1151,12 +1219,12 @@ export function App(): JSX.Element {
                     />
                   </svg>
                 </span>
-                Capture Again
+                {t("captureModal.captureAgain")}
               </button>
             </div>
 
             {state.capabilities.isIOS ? (
-              <p class="meta">On iPhone, tap Share and choose Save Image.</p>
+              <p class="meta">{t("captureModal.iosSaveHint")}</p>
             ) : null}
           </section>
         </div>
@@ -1181,14 +1249,14 @@ export function App(): JSX.Element {
             <div class="capture-modal__header">
               <h2 id="a2hs-modal-title" class="capture-modal__title">
                 {state.capabilities.isIOS
-                  ? "📲 Add FrameSnap to Home Screen"
-                  : "🚀 Install FrameSnap"}
+                  ? t("install.modalTitleIOS")
+                  : t("install.modalTitleDefault")}
               </h2>
               <button
                 type="button"
                 class="modal-close"
                 onClick={() => setIsA2HSHelpOpen(false)}
-                aria-label="Close add to home screen help"
+                aria-label={t("install.closeHelpAria")}
               >
                 <span class="icon-sm" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none">
@@ -1205,15 +1273,15 @@ export function App(): JSX.Element {
             <ol class="a2hs-modal__steps">
               {state.capabilities.isIOS ? (
                 <>
-                  <li>Tap the Share button in Safari.</li>
-                  <li>Scroll down and tap Add to Home Screen.</li>
-                  <li>Tap Add to install FrameSnap on your iPhone.</li>
+                  <li>{t("install.iosStep1")}</li>
+                  <li>{t("install.iosStep2")}</li>
+                  <li>{t("install.iosStep3")}</li>
                 </>
               ) : (
                 <>
-                  <li>Open your browser menu.</li>
-                  <li>Tap Install App or Add to Home Screen.</li>
-                  <li>Confirm install to pin FrameSnap.</li>
+                  <li>{t("install.defaultStep1")}</li>
+                  <li>{t("install.defaultStep2")}</li>
+                  <li>{t("install.defaultStep3")}</li>
                 </>
               )}
             </ol>
@@ -1221,8 +1289,62 @@ export function App(): JSX.Element {
         </div>
       ) : null}
 
-      <footer class="app-footer" aria-label="App credits">
-        <p class="app-footer__text">
+      <footer class="app-footer" aria-label={t("footer.ariaLabel")}>
+        <div class="app-footer__text">
+          <span class="app-footer__item app-footer__item--language">
+            <span class="app-footer__label">{t("common.languageSwitcherLabel")}</span>
+            <details class="locale-dropdown" ref={localeDropdownRef}>
+              <summary
+                class="locale-dropdown__trigger"
+                aria-label={t("common.languageSwitcherLabel")}
+                title={t("common.languageSwitcherLabel")}
+              >
+                <span class="locale-switch__flag" aria-hidden="true">
+                  {renderLocaleFlag(locale)}
+                </span>
+                <span class="locale-dropdown__value">{currentLocaleCode}</span>
+                <span class="locale-dropdown__chevron icon-sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M7 10L12 15L17 10"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+              </summary>
+              <div class="locale-dropdown__menu" role="menu" aria-label={t("common.languageSwitcherLabel")}>
+                <button
+                  type="button"
+                  class={locale === "en" ? "locale-dropdown__option is-active" : "locale-dropdown__option"}
+                  onClick={() => onSelectLocale("en")}
+                  role="menuitemradio"
+                  aria-checked={locale === "en"}
+                  aria-label={t("common.switchToEnglish")}
+                >
+                  <span class="locale-switch__flag" aria-hidden="true">
+                    {renderLocaleFlag("en")}
+                  </span>
+                  <span class="locale-dropdown__option-code">EN</span>
+                </button>
+                <button
+                  type="button"
+                  class={locale === "vi" ? "locale-dropdown__option is-active" : "locale-dropdown__option"}
+                  onClick={() => onSelectLocale("vi")}
+                  role="menuitemradio"
+                  aria-checked={locale === "vi"}
+                  aria-label={t("common.switchToVietnamese")}
+                >
+                  <span class="locale-switch__flag" aria-hidden="true">
+                    {renderLocaleFlag("vi")}
+                  </span>
+                  <span class="locale-dropdown__option-code">VI</span>
+                </button>
+              </div>
+            </details>
+          </span>
           <span class="app-footer__item">
             <span class="icon-sm app-footer__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
@@ -1234,7 +1356,7 @@ export function App(): JSX.Element {
                 />
               </svg>
             </span>
-            FrameSnap v{appVersion}
+            {t("footer.version", { version: appVersion })}
           </span>
           <span class="app-footer__item">
             <span class="icon-sm app-footer__icon" aria-hidden="true">
@@ -1247,7 +1369,7 @@ export function App(): JSX.Element {
                 />
               </svg>
             </span>
-            Made by{" "}
+            {t("footer.madeByPrefix")}{" "}
             <a
               class="app-footer__link"
               href="https://github.com/stever410"
@@ -1256,9 +1378,9 @@ export function App(): JSX.Element {
             >
               stever410
             </a>
-            for my girlfriend, Orchix.
+            {` ${t("footer.madeBySuffix")}`}
           </span>
-        </p>
+        </div>
       </footer>
     </main>
   );

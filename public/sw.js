@@ -2,6 +2,8 @@ const VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
 const CACHE_NAME = `framesnap-shell-${VERSION}`;
 const APP_SHELL = [
   "/index.html",
+  "/manifest.en.webmanifest",
+  "/manifest.vi.webmanifest",
   "/manifest.webmanifest",
   "/favicon.svg",
   "/icons/apple-touch-icon.png",

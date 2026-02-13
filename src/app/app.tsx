@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import { reducer } from "./reducer";
 import { initialState } from "./types";
-import { canShareFiles, isIOS } from "../platform/capability";
+import { canShareFiles, isAndroid, isIOS } from "../platform/capability";
 import {
   assertSupportedVideo,
   createVideoObjectUrl,
@@ -16,7 +16,10 @@ import { formatTimestamp, parseTimestampInput } from "../ui/format";
 export function App(): JSX.Element {
   type BeforeInstallPromptEvent = Event & {
     prompt: () => Promise<void>;
-    userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+    userChoice: Promise<{
+      outcome: "accepted" | "dismissed";
+      platform: string;
+    }>;
   };
   type IOSNavigator = Navigator & { standalone?: boolean };
 
@@ -64,6 +67,7 @@ export function App(): JSX.Element {
       payload: {
         canShareFiles: canShareFiles(),
         isIOS: isIOS(),
+        isAndroid: isAndroid(),
       },
     });
   }, []);
@@ -178,7 +182,21 @@ export function App(): JSX.Element {
   const showInstallButton = !isInstalled && isInstallEligible;
   const showAddToHomeScreenButton =
     !isInstalled && state.capabilities.isIOS && !isInstallEligible;
-  const showMobileInstallFab = isMobileViewport && !isInstalled;
+  const showDesktopInstallButton = !isMobileViewport && showInstallButton;
+  const showDesktopAddToHomeScreenButton =
+    !isMobileViewport && showAddToHomeScreenButton;
+  const showMobileIOSInstallFab =
+    isMobileViewport && !isInstalled && state.capabilities.isIOS;
+  const showMobileAndroidInstallCard =
+    isMobileViewport &&
+    !isInstalled &&
+    state.capabilities.isAndroid &&
+    showInstallButton;
+  const showMobileFallbackInstallFab =
+    isMobileViewport &&
+    !isInstalled &&
+    !state.capabilities.isIOS &&
+    !state.capabilities.isAndroid;
   const appVersion = __APP_VERSION__;
   const SEEK_TIMEOUT_MS = 3000;
 
@@ -492,7 +510,13 @@ export function App(): JSX.Element {
   };
 
   return (
-    <main class={hasVideo ? "app-shell app-shell--video" : "app-shell app-shell--upload-focus"}>
+    <main
+      class={
+        hasVideo
+          ? "app-shell app-shell--video"
+          : "app-shell app-shell--upload-focus"
+      }
+    >
       <header class="glass card hero hero--compact">
         <div class="hero-headline">
           <div class="brand-title">
@@ -511,18 +535,44 @@ export function App(): JSX.Element {
           </p>
         </div>
         <div class="hero-actions">
-          {!isMobileViewport && showInstallButton ? (
+          {showDesktopInstallButton ? (
             <button
               type="button"
-              class="btn-secondary hero-install-btn"
+              class="btn-secondary with-icon hero-install-btn"
               onClick={() => {
                 void onInstallApp();
               }}
             >
+              <span class="icon-sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 4V13.8"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M8.8 10.9L12 13.9L15.2 10.9"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <rect
+                    x="5"
+                    y="15.5"
+                    width="14"
+                    height="4"
+                    rx="1.6"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                </svg>
+              </span>
               Install App
             </button>
           ) : null}
-          {!isMobileViewport && showAddToHomeScreenButton ? (
+          {showDesktopAddToHomeScreenButton ? (
             <button
               type="button"
               class="btn-secondary hero-install-btn"
@@ -576,7 +626,48 @@ export function App(): JSX.Element {
         </div>
       </header>
 
-      {showMobileInstallFab ? (
+      {showMobileAndroidInstallCard ? (
+        <section class="glass card mobile-install-card">
+          <p class="mobile-install-card__title">Install FrameSnap</p>
+          <button
+            type="button"
+            class="btn-primary with-icon mobile-install-card__button"
+            onClick={() => {
+              void onInstallApp();
+            }}
+          >
+            <span class="icon-sm" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 4V13.8"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M8.8 10.9L12 13.9L15.2 10.9"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <rect
+                  x="5"
+                  y="15.5"
+                  width="14"
+                  height="4"
+                  rx="1.6"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+              </svg>
+            </span>
+            Install App
+          </button>
+        </section>
+      ) : null}
+
+      {showMobileIOSInstallFab || showMobileFallbackInstallFab ? (
         <div class="floating-install-wrap">
           <button
             type="button"
@@ -673,7 +764,12 @@ export function App(): JSX.Element {
       {hasVideo ? (
         <section class="glass card video-stage">
           <div class="video-stage__header">
-            <p class="video-stage__filename">Your video</p>
+            <div class="video-stage__title-wrap">
+              <p class="video-stage__eyebrow">Ready to capture</p>
+              <p class="video-stage__filename">
+                {state.video.fileName ?? "Your video"}
+              </p>
+            </div>
             <button
               type="button"
               class="video-stage__change"
@@ -728,10 +824,14 @@ export function App(): JSX.Element {
                 void onCapture();
               }}
               aria-label={
-                state.phase === "capturing" ? "Capturing frame" : "Capture frame"
+                state.phase === "capturing"
+                  ? "Capturing frame"
+                  : "Capture frame"
               }
               title={
-                state.phase === "capturing" ? "Capturing frame" : "Capture frame"
+                state.phase === "capturing"
+                  ? "Capturing frame"
+                  : "Capture frame"
               }
             >
               <span class="icon-sm" aria-hidden="true">
@@ -797,7 +897,9 @@ export function App(): JSX.Element {
         </section>
       ) : null}
 
-      {isCaptureModalOpen && previewUrl && state.capture.timestampSec !== null ? (
+      {isCaptureModalOpen &&
+      previewUrl &&
+      state.capture.timestampSec !== null ? (
         <div
           class="modal-backdrop"
           role="presentation"
@@ -841,7 +943,9 @@ export function App(): JSX.Element {
               alt="Captured frame preview"
             />
             <div class="chip-row">
-              <span class="chip">{formatTimestamp(state.capture.timestampSec)}</span>
+              <span class="chip">
+                {formatTimestamp(state.capture.timestampSec)}
+              </span>
               <span class="chip">
                 {state.capture.width} x {state.capture.height}
               </span>
@@ -967,8 +1071,8 @@ export function App(): JSX.Element {
             <div class="capture-modal__header">
               <h2 id="a2hs-modal-title" class="capture-modal__title">
                 {state.capabilities.isIOS
-                  ? "Add FrameSnap to Home Screen"
-                  : "Install FrameSnap"}
+                  ? "📲 Add FrameSnap to Home Screen"
+                  : "🚀 Install FrameSnap"}
               </h2>
               <button
                 type="button"

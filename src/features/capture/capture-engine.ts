@@ -12,6 +12,11 @@ export type CaptureResult = {
 const SEEK_TIMEOUT_MS = 3000;
 const SEEK_EPSILON_SEC = 0.001;
 const FRAME_READY_TIMEOUT_MS = 220;
+const BLACK_CHANNEL_MAX = 18;
+const EDGE_DARK_RATIO = 0.995;
+const EDGE_SCAN_STEP = 2;
+const MIN_TRIM_PX = 8;
+const MIN_TRIM_RATIO = 0.02;
 
 function waitForSeek(video: HTMLVideoElement, targetSec: number, timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -106,6 +111,120 @@ function toBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
   });
 }
 
+function isDarkPixel(r: number, g: number, b: number): boolean {
+  return r <= BLACK_CHANNEL_MAX && g <= BLACK_CHANNEL_MAX && b <= BLACK_CHANNEL_MAX;
+}
+
+function rowDarkRatio(data: Uint8ClampedArray, width: number, y: number): number {
+  let total = 0;
+  let dark = 0;
+
+  for (let x = 0; x < width; x += EDGE_SCAN_STEP) {
+    const index = (y * width + x) * 4;
+    if (isDarkPixel(data[index] ?? 0, data[index + 1] ?? 0, data[index + 2] ?? 0)) {
+      dark += 1;
+    }
+    total += 1;
+  }
+
+  return total > 0 ? dark / total : 0;
+}
+
+function colDarkRatio(data: Uint8ClampedArray, width: number, height: number, x: number): number {
+  let total = 0;
+  let dark = 0;
+
+  for (let y = 0; y < height; y += EDGE_SCAN_STEP) {
+    const index = (y * width + x) * 4;
+    if (isDarkPixel(data[index] ?? 0, data[index + 1] ?? 0, data[index + 2] ?? 0)) {
+      dark += 1;
+    }
+    total += 1;
+  }
+
+  return total > 0 ? dark / total : 0;
+}
+
+function trimLetterboxBars(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const width = canvas.width;
+  const height = canvas.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx || width <= 0 || height <= 0) {
+    return canvas;
+  }
+
+  const frame = ctx.getImageData(0, 0, width, height);
+  const data = frame.data;
+
+  let top = 0;
+  while (top < height && rowDarkRatio(data, width, top) >= EDGE_DARK_RATIO) {
+    top += 1;
+  }
+
+  let bottom = height - 1;
+  while (bottom >= top && rowDarkRatio(data, width, bottom) >= EDGE_DARK_RATIO) {
+    bottom -= 1;
+  }
+
+  let left = 0;
+  while (left < width && colDarkRatio(data, width, height, left) >= EDGE_DARK_RATIO) {
+    left += 1;
+  }
+
+  let right = width - 1;
+  while (right >= left && colDarkRatio(data, width, height, right) >= EDGE_DARK_RATIO) {
+    right -= 1;
+  }
+
+  const trimTop = top;
+  const trimBottom = height - 1 - bottom;
+  const trimLeft = left;
+  const trimRight = width - 1 - right;
+  const horizontalTrim = trimLeft + trimRight;
+  const verticalTrim = trimTop + trimBottom;
+  const minHorizontalTrim = Math.max(MIN_TRIM_PX, Math.floor(width * MIN_TRIM_RATIO));
+  const minVerticalTrim = Math.max(MIN_TRIM_PX, Math.floor(height * MIN_TRIM_RATIO));
+  const shouldTrimHorizontally = horizontalTrim >= minHorizontalTrim;
+  const shouldTrimVertically = verticalTrim >= minVerticalTrim;
+
+  if (!shouldTrimHorizontally && !shouldTrimVertically) {
+    return canvas;
+  }
+
+  const cropLeft = shouldTrimHorizontally ? trimLeft : 0;
+  const cropTop = shouldTrimVertically ? trimTop : 0;
+  const cropRight = shouldTrimHorizontally ? trimRight : 0;
+  const cropBottom = shouldTrimVertically ? trimBottom : 0;
+  const croppedWidth = width - cropLeft - cropRight;
+  const croppedHeight = height - cropTop - cropBottom;
+
+  if (croppedWidth <= 0 || croppedHeight <= 0) {
+    return canvas;
+  }
+
+  const croppedCanvas = document.createElement("canvas");
+  croppedCanvas.width = croppedWidth;
+  croppedCanvas.height = croppedHeight;
+  const croppedCtx = croppedCanvas.getContext("2d", { alpha: false });
+  if (!croppedCtx) {
+    return canvas;
+  }
+
+  croppedCtx.drawImage(
+    canvas,
+    cropLeft,
+    cropTop,
+    croppedWidth,
+    croppedHeight,
+    0,
+    0,
+    croppedWidth,
+    croppedHeight
+  );
+
+  return croppedCanvas;
+}
+
 export async function captureFrameAt(video: HTMLVideoElement, targetSec: number): Promise<CaptureResult> {
   const duration = Number.isFinite(video.duration) ? video.duration : 0;
   const clampedTarget = Math.max(0, Math.min(targetSec, duration));
@@ -134,7 +253,8 @@ export async function captureFrameAt(video: HTMLVideoElement, targetSec: number)
 
   try {
     ctx.drawImage(video, 0, 0, width, height);
-    const blob = await toBlob(canvas, "image/png");
+    const outputCanvas = trimLetterboxBars(canvas);
+    const blob = await toBlob(outputCanvas, "image/png");
     const file = new File([blob], `framesnap-${fileSafeTimestamp(clampedTarget)}.png`, {
       type: "image/png"
     });
@@ -142,8 +262,8 @@ export async function captureFrameAt(video: HTMLVideoElement, targetSec: number)
     return {
       blob,
       file,
-      width,
-      height,
+      width: outputCanvas.width,
+      height: outputCanvas.height,
       timestampSec: clampedTarget
     };
   } finally {

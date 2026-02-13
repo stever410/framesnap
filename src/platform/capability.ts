@@ -3,6 +3,10 @@ export function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
+export function isAndroid(): boolean {
+  return /Android/i.test(navigator.userAgent);
+}
+
 export function canShareFiles(): boolean {
   const nav = navigator as Navigator & {
     canShare?: (data?: ShareData) => boolean;

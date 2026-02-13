@@ -21,6 +21,7 @@ export type AppState = {
   capabilities: {
     canShareFiles: boolean;
     isIOS: boolean;
+    isAndroid: boolean;
   };
   error: {
     code: AppErrorCode | null;
@@ -29,7 +30,10 @@ export type AppState = {
 };
 
 export type AppAction =
-  | { type: "app/bootstrap"; payload: { canShareFiles: boolean; isIOS: boolean } }
+  | {
+      type: "app/bootstrap";
+      payload: { canShareFiles: boolean; isIOS: boolean; isAndroid: boolean };
+    }
   | { type: "video/loading" }
   | {
       type: "video/ready";
@@ -69,7 +73,8 @@ export const initialState: AppState = {
   },
   capabilities: {
     canShareFiles: false,
-    isIOS: false
+    isIOS: false,
+    isAndroid: false
   },
   error: {
     code: null,

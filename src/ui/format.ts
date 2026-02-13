@@ -40,3 +40,18 @@ export function fileSafeTimestamp(totalSec: number): string {
   const safe = Number.isFinite(totalSec) && totalSec >= 0 ? totalSec : 0;
   return safe.toFixed(3).replace(".", "-");
 }
+
+export function formatFileSize(bytes: number): string {
+  const size = Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
+  const units = ["B", "KB", "MB", "GB"];
+  let value = size;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const precision = value >= 100 || unitIndex === 0 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}

@@ -9,9 +9,16 @@ export type CaptureResult = {
   timestampSec: number;
 };
 
+export type CaptureUpscaleFactor = 1 | 1.5 | 2 | 3;
+export const CAPTURE_UPSCALE_FACTORS: CaptureUpscaleFactor[] = [1, 1.5, 2, 3];
+type CaptureOptions = {
+  upscaleFactor?: CaptureUpscaleFactor;
+};
+
 const SEEK_TIMEOUT_MS = 3000;
 const SEEK_EPSILON_SEC = 0.001;
 const FRAME_READY_TIMEOUT_MS = 220;
+const MAX_UPSCALED_EDGE_PX = 8192;
 const BLACK_CHANNEL_MAX = 18;
 const EDGE_DARK_RATIO = 0.995;
 const EDGE_SCAN_STEP = 2;
@@ -225,7 +232,50 @@ function trimLetterboxBars(canvas: HTMLCanvasElement): HTMLCanvasElement {
   return croppedCanvas;
 }
 
-export async function captureFrameAt(video: HTMLVideoElement, targetSec: number): Promise<CaptureResult> {
+function resolveUpscaleFactor(width: number, height: number, requestedFactor: number): number {
+  if (!Number.isFinite(requestedFactor) || requestedFactor <= 1) {
+    return 1;
+  }
+
+  const edgeLimitedFactor = Math.min(
+    MAX_UPSCALED_EDGE_PX / width,
+    MAX_UPSCALED_EDGE_PX / height
+  );
+
+  if (!Number.isFinite(edgeLimitedFactor) || edgeLimitedFactor <= 1) {
+    return 1;
+  }
+
+  return Math.min(requestedFactor, edgeLimitedFactor);
+}
+
+function upscaleCanvas(sourceCanvas: HTMLCanvasElement, factor: number): HTMLCanvasElement {
+  if (factor <= 1) {
+    return sourceCanvas;
+  }
+
+  const targetWidth = Math.max(1, Math.round(sourceCanvas.width * factor));
+  const targetHeight = Math.max(1, Math.round(sourceCanvas.height * factor));
+  const outputCanvas = document.createElement("canvas");
+  outputCanvas.width = targetWidth;
+  outputCanvas.height = targetHeight;
+
+  const outputCtx = outputCanvas.getContext("2d", { alpha: false });
+  if (!outputCtx) {
+    return sourceCanvas;
+  }
+
+  outputCtx.imageSmoothingEnabled = true;
+  outputCtx.imageSmoothingQuality = "high";
+  outputCtx.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
+  return outputCanvas;
+}
+
+export async function captureFrameAt(
+  video: HTMLVideoElement,
+  targetSec: number,
+  options?: CaptureOptions
+): Promise<CaptureResult> {
   const duration = Number.isFinite(video.duration) ? video.duration : 0;
   const clampedTarget = Math.max(0, Math.min(targetSec, duration));
   const shouldResumePlayback = !video.paused && !video.ended;
@@ -254,7 +304,10 @@ export async function captureFrameAt(video: HTMLVideoElement, targetSec: number)
   try {
     // Draw at native decoded frame size (no resampling).
     ctx.drawImage(video, 0, 0);
-    const blob = await toBlob(canvas, "image/png");
+    const requestedUpscale = options?.upscaleFactor ?? 1;
+    const upscaleFactor = resolveUpscaleFactor(width, height, requestedUpscale);
+    const outputCanvas = upscaleCanvas(canvas, upscaleFactor);
+    const blob = await toBlob(outputCanvas, "image/png");
     const file = new File([blob], `framesnap-${fileSafeTimestamp(clampedTarget)}.png`, {
       type: "image/png"
     });
@@ -262,8 +315,8 @@ export async function captureFrameAt(video: HTMLVideoElement, targetSec: number)
     return {
       blob,
       file,
-      width,
-      height,
+      width: outputCanvas.width,
+      height: outputCanvas.height,
       timestampSec: clampedTarget
     };
   } finally {

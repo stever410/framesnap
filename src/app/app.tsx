@@ -8,10 +8,18 @@ import {
   createVideoObjectUrl,
   revokeVideoObjectUrl,
 } from "../features/video/video-engine";
-import { captureFrameAt } from "../features/capture/capture-engine";
+import {
+  CAPTURE_UPSCALE_FACTORS,
+  captureFrameAt,
+  type CaptureUpscaleFactor,
+} from "../features/capture/capture-engine";
 import { downloadCapture, shareCapture } from "../features/share/share-service";
 import { AppError, toUserMessage } from "../shared/errors";
-import { formatTimestamp, parseTimestampInput } from "../ui/format";
+import {
+  formatFileSize,
+  formatTimestamp,
+  parseTimestampInput,
+} from "../ui/format";
 
 export function App(): JSX.Element {
   type BeforeInstallPromptEvent = Event & {
@@ -37,6 +45,9 @@ export function App(): JSX.Element {
     "idle" | "preparing" | "downloading"
   >("idle");
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [captureUpscaleFactor, setCaptureUpscaleFactor] =
+    useState<CaptureUpscaleFactor>(1);
+  const [isApplyingUpscale, setIsApplyingUpscale] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isEditingTimestampRef = useRef(false);
@@ -359,7 +370,9 @@ export function App(): JSX.Element {
     dispatch({ type: "capture/start" });
 
     try {
-      const result = await captureFrameAt(video, target);
+      const result = await captureFrameAt(video, target, {
+        upscaleFactor: captureUpscaleFactor,
+      });
       dispatch({
         type: "capture/ready",
         payload: {
@@ -379,6 +392,56 @@ export function App(): JSX.Element {
           message: toUserMessage(error),
         },
       });
+    }
+  };
+
+  const isValidUpscaleFactor = (
+    value: number,
+  ): value is CaptureUpscaleFactor => {
+    return CAPTURE_UPSCALE_FACTORS.includes(value as CaptureUpscaleFactor);
+  };
+
+  const onChangeUpscaleFactor = async (
+    nextFactor: CaptureUpscaleFactor,
+  ): Promise<void> => {
+    setCaptureUpscaleFactor(nextFactor);
+
+    if (!isCaptureModalOpen || state.capture.timestampSec === null) {
+      return;
+    }
+
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    setIsApplyingUpscale(true);
+    dispatch({ type: "capture/start" });
+
+    try {
+      const result = await captureFrameAt(video, state.capture.timestampSec, {
+        upscaleFactor: nextFactor,
+      });
+      dispatch({
+        type: "capture/ready",
+        payload: {
+          file: result.file,
+          width: result.width,
+          height: result.height,
+          timestampSec: result.timestampSec,
+        },
+      });
+    } catch (error: unknown) {
+      const code = error instanceof AppError ? error.code : "CAPTURE_FAILED";
+      dispatch({
+        type: "error/set",
+        payload: {
+          code,
+          message: toUserMessage(error),
+        },
+      });
+    } finally {
+      setIsApplyingUpscale(false);
     }
   };
 
@@ -955,6 +1018,47 @@ export function App(): JSX.Element {
               <span class="chip">
                 {state.capture.width} x {state.capture.height}
               </span>
+              <span class="chip">
+                {state.capture.file
+                  ? formatFileSize(state.capture.file.size)
+                  : "0 B"}
+              </span>
+            </div>
+            <div class="capture-upscale-panel">
+              <div class="capture-output-wrap">
+                <label class="capture-output-label" htmlFor="upscale-select">
+                  Download size
+                </label>
+                <select
+                  id="upscale-select"
+                  class="capture-output-select"
+                  value={`${captureUpscaleFactor}`}
+                  disabled={isApplyingUpscale}
+                  onChange={(event) => {
+                    const nextValue = Number(
+                      (event.target as HTMLSelectElement).value,
+                    );
+                    if (isValidUpscaleFactor(nextValue)) {
+                      void onChangeUpscaleFactor(nextValue);
+                    }
+                  }}
+                >
+                  {CAPTURE_UPSCALE_FACTORS.map((factor) => (
+                    <option key={factor} value={factor}>
+                      {factor === 1
+                        ? "Original (1x)"
+                        : `Upscaled (${factor}x)`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p class="capture-upscale-note">
+                Upscale increases output dimensions for export. It may look
+                smoother but does not add real detail.
+              </p>
+              {isApplyingUpscale ? (
+                <p class="capture-upscale-status">Updating captured frame...</p>
+              ) : null}
             </div>
 
             <div class="capture-modal__actions">

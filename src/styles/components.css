@@ -25,6 +25,11 @@
   gap: var(--space-2);
 }
 
+.app-shell--unified.app-shell--upload-focus .upload-card {
+  align-content: start;
+  padding-top: var(--space-3);
+}
+
 .app-shell--upload-focus .upload-dropzone {
   min-height: clamp(320px, 52dvh, 560px);
   border-radius: 24px;
@@ -330,6 +335,53 @@
 .timestamp-input-wrap .timestamp-input {
   margin-top: 0;
   padding-right: var(--space-3);
+}
+
+.capture-output-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+.capture-output-label {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.capture-output-select {
+  width: 100%;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
+  padding: 10px var(--space-3);
+  min-height: 44px;
+}
+
+.capture-upscale-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--control-bg) 80%, transparent);
+  padding: var(--space-2);
+}
+
+.capture-upscale-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.capture-upscale-status {
+  margin: 0;
+  color: var(--cta-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .upload-card {

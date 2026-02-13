@@ -686,16 +686,16 @@ export function App(): JSX.Element {
               <span class="icon-sm" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path
-                    d="M7.8 8.6A6.6 6.6 0 0 1 18 14.2M16.2 15.4A6.6 6.6 0 0 1 6 9.8"
+                    d="M6.5 7.5H14.5L17.5 10V16.5H6.5V7.5Z"
                     stroke="currentColor"
                     stroke-width="1.8"
                     stroke-linecap="round"
+                    stroke-linejoin="round"
                   />
                   <path
-                    d="M17.9 10.4V6.8H14.3M6.1 13.6V17.2H9.7"
+                    d="M10.2 11.2L13.1 12.9L10.2 14.6V11.2Z"
                     stroke="currentColor"
                     stroke-width="1.8"
-                    stroke-linecap="round"
                     stroke-linejoin="round"
                   />
                 </svg>
@@ -741,15 +741,28 @@ export function App(): JSX.Element {
               <span class="icon-sm" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <rect
-                    x="4.5"
-                    y="7.5"
-                    width="15"
+                    x="5"
+                    y="8"
+                    width="14"
                     height="9"
-                    rx="2.2"
+                    rx="2"
                     stroke="currentColor"
                     stroke-width="1.8"
                   />
-                  <circle cx="12" cy="12" r="2.4" fill="currentColor" />
+                  <path
+                    d="M8.5 8L10 5.8H14L15.5 8"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12.5"
+                    r="2.3"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
                 </svg>
               </span>
             </button>

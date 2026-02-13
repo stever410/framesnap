@@ -3,246 +3,229 @@
 ## 1. Architecture Goals
 
 - Local-first: no backend, no external API calls, no telemetry.
-- iOS-first reliability: frame capture accuracy and share flow are top priorities.
-- Small footprint: minimal code and dependency surface.
-- Offline capability: app shell available after first load.
-- Clear boundaries: isolate browser-specific complexity from Preact UI and state orchestration.
+- iOS-first reliability: frame capture correctness and export flow are priorities.
+- Clear boundaries between state, side effects, and presentation.
+- Predictable state transitions with typed actions and selectors.
+- CI-enforced quality gate before release/deploy.
 
-## 2. System Context
+## 2. Runtime Context
 
-- Client-only PWA running in browser (iOS Safari, iOS standalone PWA, Android Chrome, desktop browsers).
-- Inputs: local video file chosen by user.
-- Outputs: captured frame image file shared via Web Share API or downloaded.
-- Persistent storage: none in MVP (except browser cache for app shell assets via Service Worker).
+- Client-only PWA running in modern browsers (iOS Safari, Android Chrome, desktop browsers).
+- Input: user-selected local video file.
+- Output: captured frame image shared or downloaded.
+- Persistent storage: browser cache (service worker) + localStorage (theme/locale).
 
-## 3. High-Level Component Model
+## 3. High-Level Module Model
 
-- `App Controller`
-  - Bootstraps app, wires modules, and coordinates side effects.
-- `State Store`
-  - Holds immutable app state and reducer/actions.
-- `Preact UI Layer`
-  - Components render from state/selectors. No business logic.
-- `Video Engine`
-  - Manages `<video>`, object URLs, seek logic, metadata, and scrub sync.
-- `Capture Engine`
-  - Executes iOS-safe capture pipeline (`seeked` -> `requestAnimationFrame` -> `drawImage` -> `toBlob`).
-- `Share/Download Service`
-  - Handles feature detection and output actions (`navigator.share` first, download fallback).
-- `Service Worker Layer`
-  - Caches app shell assets and enables offline use.
-- `Error Mapper`
-  - Converts low-level errors into user-safe messages and typed error codes.
+- `AppStoreProvider`
+  - Owns reducer state and dispatch.
+- `AppControllerProvider`
+  - Composes feature hooks and app-level UI orchestration.
+- `Feature Hooks`
+  - Video, capture, install, theme controllers.
+- `Feature Components`
+  - Presentation-focused UI (no deep side-effect logic).
+- `Service Layer`
+  - Browser API wrappers: metadata loading, seek, install prompt, theme storage.
+- `Engine Layer`
+  - Capture engine for frame extraction; video/share engines for media handling.
 
 ## 4. State Design
 
-Use a single app state object with explicit finite states:
+App state lives in `src/app/state/` and is managed by a single reducer.
 
-- `idle`: no video selected.
-- `loading_video`: user selected file, video metadata pending.
-- `video_ready`: video loaded and scrub-capable.
-- `capturing`: capture in progress.
-- `capture_ready`: image preview available.
-- `error`: recoverable error shown to user.
+Primary phase states:
 
-Minimal state shape:
+- `idle`
+- `loading_video`
+- `video_ready`
+- `capturing`
+- `capture_ready`
+- `error`
+
+Current shape (simplified):
 
 ```ts
 type AppState = {
-  phase: "idle" | "loading_video" | "video_ready" | "capturing" | "capture_ready" | "error";
+  phase: AppPhase;
   video: {
     fileName: string | null;
     objectUrl: string | null;
-    durationSec: number | null;
+    durationSec: number;
     currentTimeSec: number;
     width: number | null;
     height: number | null;
   };
   capture: {
-    blob: Blob | null;
-    fileName: string | null;
-    timestampSec: number | null;
+    file: File | null;
     width: number | null;
     height: number | null;
+    timestampSec: number | null;
   };
   capabilities: {
     canShareFiles: boolean;
     isIOS: boolean;
+    isAndroid: boolean;
+  };
+  install: {
+    isInstallEligible: boolean;
+    isInstalled: boolean;
+    isMobileViewport: boolean;
+    isA2HSHelpOpen: boolean;
   };
   error: {
-    code: AppErrorCode | null;
+    code: ResolvedErrorCode | null;
     message: string | null;
   };
 };
 ```
 
-Rules:
-
-- All state changes go through typed actions/reducers.
-- Preact render layer should be pure from `AppState` to UI.
-- Side effects (file handling, capture, share) happen in controller/service modules, not components.
-
-## 5. Recommended Folder Layout
+## 5. Folder Layout
 
 ```text
 src/
   app/
     app.tsx
-    controller.ts
-    state.ts
-    actions.ts
-    reducer.ts
-    selectors.ts
+    providers/
+      app-store.provider.tsx
+      app-controller.provider.tsx
+    state/
+      app-state.types.ts
+      app-actions.types.ts
+      app-initial-state.ts
+      app-reducer.ts
+      app-selectors.ts
+      app-actions.ts
   features/
     video/
+      components/
+      hooks/
+      services/
+      interfaces/
+      types/
       video-engine.ts
-      video-events.ts
-      video-types.ts
     capture/
+      components/
+      hooks/
+      services/
+      interfaces/
+      types/
       capture-engine.ts
-      capture-types.ts
+    install/
+      components/
+      hooks/
+      services/
+      interfaces/
+      types/
+    shell/
+      components/
+      hooks/
+      services/
+      interfaces/
+      types/
     share/
       share-service.ts
-    offline/
-      sw-register.ts
-  ui/
-    AppShell.tsx
-    format.ts
-    components/
-      Header.tsx
-      Uploader.tsx
-      Timeline.tsx
-      CapturePanel.tsx
-      PreviewPanel.tsx
-      ErrorBanner.tsx
-    hooks/
-      useAppStore.ts
-      useCapabilities.ts
-    context/
-      AppStateContext.tsx
   platform/
     capability.ts
-    browser.ts
   shared/
     errors.ts
-    logger.ts
-    guards.ts
-    constants.ts
+  ui/
+    format.ts
+  i18n/
+    index.tsx
+    locales/
   styles/
     tokens.css
     base.css
     components.css
-  main.tsx
+    utilities.css
 ```
 
 ## 6. Core Flows
 
 ### 6.1 Video Load Flow
 
-1. User picks file.
-2. Validate MIME/extension.
-3. Revoke previous object URL if exists.
-4. Create new object URL and assign to `<video>`.
-5. Wait for metadata load.
-6. Transition to `video_ready`.
+1. User selects file from hidden input.
+2. Validate support (`video-engine`).
+3. Revoke previous object URL.
+4. Create new URL and read metadata (`video-metadata.service`).
+5. Dispatch `video/ready` and reset timestamp input.
 
 ### 6.2 Capture Flow
 
-1. Receive target timestamp (current or manually entered).
-2. Transition to `capturing`.
-3. Set `video.currentTime`.
-4. Await `seeked` with timeout and one retry.
-5. Await one `requestAnimationFrame`.
-6. Draw frame to canvas (optional scale-down policy).
-7. Export with `canvas.toBlob`.
-8. Build output `File`.
-9. Transition to `capture_ready`.
+1. Read target timestamp from input/current time.
+2. Dispatch `capture/start`.
+3. Run `captureFrameAt` with selected upscale factor.
+4. Dispatch `capture/ready`.
+5. Open modal with preview URL.
 
-### 6.3 Share/Download Flow
+### 6.3 Install Flow
 
-1. Detect file-sharing support once at startup.
-2. If supported, attempt `navigator.share({ files: [file] })`.
-3. If unsupported, canceled, or failed, keep preview visible and provide download fallback.
-4. Never lose captured image due to share errors.
+1. Detect capabilities + standalone mode.
+2. Listen for `beforeinstallprompt` / `appinstalled`.
+3. Update install state and render desktop/mobile install UI variants.
+4. Handle iOS help modal fallback when needed.
+
+### 6.4 Share / Download Flow
+
+1. If `canShareFiles` capability is true, attempt native share.
+2. If unavailable/failed, user downloads file.
+3. Capture stays available in modal for retry.
 
 ## 7. Interface Contracts
 
-Define contracts for testability and decoupling.
+Each feature defines narrow interfaces for service boundaries.
 
-```ts
-export interface CaptureEngine {
-  captureAt(timeSec: number, options?: CaptureOptions): Promise<CaptureResult>;
-}
+Examples:
 
-export interface ShareService {
-  canShareFile(file: File): boolean;
-  share(file: File): Promise<"shared" | "canceled" | "failed">;
-  download(file: File): void;
-}
-```
+- `VideoMetadataService`: `loadMetadata(url)`
+- `VideoSeekService`: `seekTo(video, targetSec)`
+- `InstallPromptService`: detect + subscribe install/viewport events
+- `ThemeStorageService`: read/write theme preference
+- `CapturePreviewUrlService`: create/revoke blob URLs
 
 ## 8. Error Taxonomy
 
-Use stable internal codes:
+Stable codes in `src/shared/errors.ts`:
 
 - `UNSUPPORTED_FORMAT`
 - `VIDEO_LOAD_FAILED`
 - `SEEK_TIMEOUT`
 - `CAPTURE_FAILED`
-- `SHARE_NOT_SUPPORTED`
 - `SHARE_FAILED`
-- `MEMORY_PRESSURE`
+- `UNKNOWN` (resolved fallback)
 
-Policy:
+## 9. Quality Gates
 
-- Log technical details internally (console in dev only).
-- Show concise user message with recovery action.
-- Error state must be recoverable without page reload.
+Automated local/CI gates:
 
-## 9. Performance and Resource Management
+- `npm run check` (Biome)
+- `npm run typecheck`
+- `npm run test`
+- `npm run test:coverage` with thresholds:
+  - lines >= 80
+  - statements >= 80
+  - functions >= 80
+  - branches >= 80
 
-- Revoke object URLs when replacing video and on teardown.
-- Reuse one canvas instance per capture size profile when possible.
-- Prefer `toBlob` over `toDataURL`.
-- Throttle timeline UI updates (for example, 30Hz) to reduce layout churn.
-- Keep main thread responsive; avoid heavy sync loops.
-- Cap output resolution when source is very large if memory risk is detected.
+GitHub workflows:
 
-## 10. PWA and Offline Strategy
+- `ci-quality.yml`: PR + main checks
+- `deploy-production.yml`: quality + build + deploy
+- `release-notes.yml`: quality gate before release job
 
-- Precache app shell (HTML, JS, CSS, icons, manifest).
-- Runtime caching not required for MVP because there are no API calls.
-- Service worker update flow:
-  - Install new SW.
-  - Notify user when update is ready.
-  - Reload on acceptance.
-- Ensure standalone display mode works on iOS and Android.
+## 10. Deployment
 
-## 11. Security and Privacy Posture
+Primary deployment target: Vercel.
 
-- No network transfer of user-selected media.
-- No persistent storage of raw videos in MVP.
-- No analytics SDKs.
-- No third-party scripts.
-- Restrictive CSP headers in deployment config where feasible.
+Workflow-based deploy requires:
 
-## 12. Quality Gates
+- `VERCEL_TOKEN` (secret)
+- `VERCEL_ORG_ID` (repo variable)
+- `VERCEL_PROJECT_ID` (repo variable)
 
-- TypeScript strict mode enabled.
-- Unit tests for reducer, timestamp formatting, capability checks, error mapping.
-- Browser integration tests for capture and share fallback behavior.
-- Manual validation matrix:
-  - iOS Safari (latest)
-  - iOS standalone PWA
-  - Android Chrome
-  - Desktop Chrome/Safari
-- Lighthouse PWA score target: >= 90.
+## 11. Current Risks / Tradeoffs
 
-## 13. ADR Baseline
-
-Architecture decisions for MVP:
-
-- ADR-001: Use Preact + TypeScript for UI, with native Web APIs for media/capture/share (accepted).
-- ADR-002: Use single app reducer store (Context-based), with Signals as optional evolution path (accepted).
-- ADR-003: Capture pipeline optimized for iOS seek correctness (accepted).
-- ADR-004: Keep runtime dependencies minimal (`preact`, `preact/hooks`) (accepted).
+- Some UI component line coverage remains lower than utility/state modules due to SVG-heavy render trees.
+- Capture engine internals are integration-heavy; coverage focuses on orchestrators/services and user-facing behavior.
+- Accessibility lint rules are selectively tuned in `biome.json` for current modal/video interaction patterns.

@@ -2,199 +2,147 @@
 
 ## 1. Scope and Objectives
 
-This document defines coding standards for FrameSnap MVP:
+This document defines engineering standards for FrameSnap:
 
-- Maximize reliability on iOS and mobile browsers.
-- Keep code small, readable, and testable.
-- Prevent regressions in video seek/capture behavior.
 - Preserve local-first privacy guarantees.
+- Keep architecture modular and feature-oriented.
+- Maintain predictable reducer-based state transitions.
+- Enforce quality with automated checks in local dev and CI.
 
 ## 2. Language and Tooling
 
 - Language: TypeScript (`strict: true`).
-- UI Layer: Preact (`preact`, `preact/hooks`).
+- UI: Preact.
 - Build: Vite.
-- Runtime dependencies: minimal only (`preact`, `preact/hooks`).
-- Linting: ESLint with TypeScript rules (dev dependency only).
-- Formatting: Prettier or ESLint formatting rules; enforce one formatting approach only.
+- Lint + formatting: Biome (`biome.json`).
+- Testing: Vitest + `@testing-library/preact`.
+- Coverage: Vitest V8 provider with 80% minimum thresholds.
 
-Required `tsconfig` posture:
+Required TS posture (`tsconfig.json`):
 
-- `"strict": true`
-- `"noUncheckedIndexedAccess": true`
-- `"noImplicitOverride": true`
-- `"exactOptionalPropertyTypes": true`
-- `"noFallthroughCasesInSwitch": true`
+- `strict`
+- `noUncheckedIndexedAccess`
+- `noImplicitOverride`
+- `exactOptionalPropertyTypes`
+- `noFallthroughCasesInSwitch`
 
-## 3. File and Module Rules
+## 3. Project Structure Rules
 
-- One module should have one clear responsibility.
-- Keep files under ~250 lines where practical.
-- Avoid circular imports.
-- Use named exports by default; avoid default exports except app entry points.
-- Do not place business logic in UI rendering files.
+- Use feature-based folders (`features/<feature>/...`).
+- Keep state primitives in `src/app/state/*`.
+- Keep providers in `src/app/providers/*`.
+- Keep browser API access in services/engines, not directly in UI components.
+- Prefer one responsibility per file.
 
-Naming:
+## 4. State Management Rules
 
-- Files: `kebab-case.ts`
-- Types/interfaces: `PascalCase`
-- Variables/functions: `camelCase`
-- Constants: `UPPER_SNAKE_CASE` only for true constants
-- Event handlers: `onXxx` prefix
-- Async functions: verb-based names, optional `Async` suffix only if needed for clarity
-
-## 4. TypeScript Style
-
-- Do not use `any`. If unavoidable, use `unknown` and narrow with guards.
-- Prefer union types and discriminated unions for state.
-- Explicit return types required for exported functions.
-- Use readonly where mutation is not needed.
-- Use `satisfies` for config-like objects to validate shapes.
-
-Example:
-
-```ts
-export function formatTimestamp(totalSec: number): string {
-  const safe = Number.isFinite(totalSec) && totalSec >= 0 ? totalSec : 0;
-  const min = Math.floor(safe / 60);
-  const sec = Math.floor(safe % 60);
-  const ms = Math.floor((safe % 1) * 1000);
-  return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
-}
-```
-
-## 5. State Management Conventions
-
-- Primary pattern: `useReducer` + Context with typed actions.
-- Optional pattern: `@preact/signals` for localized reactive state where it reduces boilerplate.
-- All app-critical state transitions must go through typed actions and reducer.
-- Reducers must be pure and side-effect free.
-- Side effects belong in controller/service layer only.
-- Components subscribe to state and re-render from selectors/hooks.
-- Never mutate state objects in place.
+- Single reducer is source of truth for app-critical state.
+- All reducer mutations must be done through typed actions.
+- Use selectors for derived UI decisions.
+- `AppControllerProvider` composes feature hooks and exposes a controller context.
+- Avoid deep prop drilling for app-wide state/actions.
 
 Action conventions:
 
-- Action type format: `"domain/event"` (example: `"video/loaded"`).
-- Action payloads must be minimal and typed.
-- Invalid transitions should be ignored or mapped to error state explicitly.
+- Type format: `domain/event`.
+- Payloads should be minimal and typed.
 
-## 6. Preact and UI Conventions
+## 5. UI and Component Rules
 
-- Use semantic HTML elements first.
-- Prefer `data-*` selectors for JS hooks; do not bind logic to styling class names.
-- Keep component render logic idempotent and deterministic.
-- Components should stay presentation-focused; move media/capture logic to services.
-- Avoid direct inline styles in TS/TSX except for dynamic pixel-critical rendering.
-- Keep accessible labels for buttons and inputs (`aria-label`, visible text).
+- Components in `features/*/components` should be presentation-oriented.
+- Hooks in `features/*/hooks` should orchestrate side effects.
+- Services/interfaces/types belong under the same feature when feature-specific.
+- Keep semantic HTML and accessible labels where possible.
+- No inline business logic in component JSX trees.
 
-Component rules:
+## 6. TypeScript Style
 
-- One component per file for non-trivial components.
-- Component names use `PascalCase` and `.tsx` extension.
-- Keep hooks at top level and follow deterministic hook order.
-- Prefer controlled inputs for timestamp entry and capture settings.
+- No `any`.
+- Use `unknown` + narrowing for error and external input handling.
+- Explicit return types for exported functions.
+- Prefer discriminated unions and narrow types.
+- Use `import type` where appropriate.
 
-Mobile-first:
+## 7. CSS Rules
 
-- Minimum touch target size: 44x44 CSS px.
-- Respect safe-area insets on iOS.
-- Primary CTA must be reachable by thumb in portrait mode.
-
-## 7. CSS Conventions
-
-- Use CSS custom properties for tokens (`--color-*`, `--space-*`, `--radius-*`, `--font-*`).
 - Layering:
-  - `tokens.css`: design tokens only
-  - `base.css`: resets and global element styles
-  - `components.css`: component-level styles
-- Class naming: component-scoped (`capture-panel__button` pattern).
-- Avoid deep selectors and `!important`.
-- Animations must be subtle and purposeful; keep duration between 120-300ms for common transitions.
+  - `tokens.css`: design tokens
+  - `base.css`: global/reset
+  - `components.css`: shared component classes
+  - `utilities.css`: reusable utility classes (`u-*`)
+  - feature CSS files near components
+- Naming style: BEM-style class names for component blocks/elements/modifiers.
+- Avoid broad/deep selectors and style leakage across features.
 
-## 8. Browser API Conventions
+## 8. Testing Rules
 
-- Gate all optional APIs with feature detection.
-- Wrap browser APIs in thin service modules for easier testing.
-- Use explicit timeout and retry behavior for media seek operations.
-- Revoke object URLs in `finally` paths or deterministic teardown.
-- Prefer `canvas.toBlob` over `toDataURL`.
+Required commands before merge:
 
-## 9. Error Handling Standards
-
-- Throw typed errors with stable `code` values from `AppErrorCode`.
-- Convert low-level errors to user-friendly messages in one mapper.
-- Do not swallow errors silently.
-- Share cancel is not an error state; treat as user action and keep preview.
-
-Pattern:
-
-```ts
-try {
-  // operation
-} catch (error: unknown) {
-  return { ok: false, error: mapError(error) };
-}
+```bash
+npm run check
+npm run typecheck
+npm run test
 ```
 
-## 10. Logging Standards
+Coverage command:
 
-- Dev: `console.debug/info/warn/error` allowed with concise context.
-- Prod: no verbose logs; only critical error diagnostics if needed.
-- Never log user file names or media metadata unless required for debugging and only in dev mode.
+```bash
+npm run test:coverage
+```
 
-## 11. Testing Conventions
+Minimum thresholds (enforced in `vitest.config.ts`):
 
-Minimum required coverage for MVP:
+- statements >= 80
+- branches >= 80
+- functions >= 80
+- lines >= 80
 
-- Unit:
-  - reducer transitions
-  - timestamp formatter
-  - feature detection
-  - error mapper
-- Integration (browser-level):
-  - video load happy path
-  - seek + capture correctness path
-  - share-supported and fallback flow
-  - error recovery from seek failure
+Test scope expectations:
 
-Test naming:
+- Reducer/action/selector behavior
+- Utility formatting/parsing behavior
+- Capability and error mapping behavior
+- Component interaction behavior for major user flows
 
-- `should_<expected_behavior>_when_<condition>`
+## 9. CI/CD Rules
 
-Examples:
+GitHub workflow requirements:
 
-- `should_transition_to_video_ready_when_metadata_loaded`
-- `should_fallback_to_download_when_share_not_supported`
+- Pull requests must pass `ci-quality.yml`.
+- Production deploy pipeline must re-run checks before deployment.
+- Release notes workflow must not create releases unless quality checks pass.
 
-## 12. Git and Review Conventions
+## 10. Git and PR Rules
 
 Branch naming:
 
-- `feat/<short-topic>`
-- `fix/<short-topic>`
-- `chore/<short-topic>`
+- `feat/<topic>`
+- `fix/<topic>`
+- `chore/<topic>`
 
-Commit format:
+Commit style:
 
-- `feat: add iOS-safe capture pipeline`
-- `fix: retry seek once on timeout`
-- `chore: enforce strict tsconfig rules`
+- `feat: ...`
+- `fix: ...`
+- `chore: ...`
+- `test: ...`
+- `docs: ...`
 
 PR checklist:
 
-- No runtime dependencies added without ADR.
-- No violation of privacy/local-first principles.
-- Manual iOS Safari validation performed for media flow changes.
-- Bundle-size impact noted for UI changes.
+- Architecture boundaries preserved.
+- No unintended behavior regressions.
+- `check`, `typecheck`, and `test` pass locally.
+- Documentation updated when architecture/tooling/flows change.
 
-## 13. Definition of Done
+## 11. Definition of Done
 
-A task is done when:
+A change is done when:
 
-- Code follows this convention and architecture boundaries.
-- Types pass strict compile.
-- Required tests pass.
-- No console errors in target browsers.
-- UX matches PRD state and CTA priorities.
-- No regression in local-first behavior.
+- Code follows feature-based architecture.
+- State changes remain typed and traceable.
+- Biome check passes.
+- Typecheck passes.
+- Tests pass.
+- Coverage thresholds remain satisfied.
+- Relevant docs (`README.MD`, `docs/*`) are updated.

@@ -1,4 +1,6 @@
 # FrameSnap
+![Preact](https://img.shields.io/badge/Preact-673AB8?logo=preact&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white) ![Biome](https://img.shields.io/badge/Biome-60A5FA?logo=biome&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?logo=vitest&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white) ![PWA](https://img.shields.io/badge/PWA-5A0FC8?logo=pwa&logoColor=white)
+
 ![alt text](image.png)
 
 Local-first PWA to capture precise frames from local video files.
@@ -78,15 +80,12 @@ npm run test:coverage # run tests with coverage report (80% min thresholds)
 Workflows are in `.github/workflows/`:
 
 - `ci-quality.yml`
-  - Runs on every pull request and push to `main`
+  - Runs on every pull request
   - Gates: `npm run check`, `npm run typecheck`, `npm run test`
 - `deploy-production.yml`
-  - Runs on version tags (`v*`) or manual dispatch
+  - Runs on `main` version bumps (`package.json`) or manual dispatch
   - Re-runs quality gates + build before deploy
-  - Deploys to Vercel production
-- `release-notes.yml`
-  - Handles release tagging/notes for version bumps
-  - Now includes the same quality gate before release job
+  - Creates tag, deploys to Vercel production, then creates GitHub release notes on success
 
 ## Production Deployment
 

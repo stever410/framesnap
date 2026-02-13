@@ -2,12 +2,13 @@ name: Deploy Production
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    paths:
+      - "package.json"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   deployments: write
 
 concurrency:
@@ -43,9 +44,79 @@ jobs:
       - name: Build
         run: npm run build
 
+  prepare_release:
+    needs: quality
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.prep.outputs.should_release }}
+      reason: ${{ steps.prep.outputs.reason }}
+      current: ${{ steps.prep.outputs.current }}
+      tag: ${{ steps.prep.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Prepare release
+        id: prep
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(node -p "require('./package.json').version")"
+          tag="v${current}"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "reason=tag-exists" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "reason=manual-bootstrap" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            prev="$(git show HEAD^:package.json | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version));")"
+          else
+            prev=""
+          fi
+
+          if [ "$current" != "$prev" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "reason=version-bump" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no-version-change" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag
+        if: steps.prep.outputs.should_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.prep.outputs.tag }}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists. Skipping."
+            exit 0
+          fi
+          git tag "$tag"
+          git push origin "$tag"
+
   deploy:
     runs-on: ubuntu-latest
-    needs: quality
+    needs: [quality, prepare_release]
+    if: needs.prepare_release.outputs.should_release == 'true'
     environment:
       name: production
     env:
@@ -81,3 +152,16 @@ jobs:
 
       - name: Deploy to Vercel
         run: vercel deploy --prebuilt --prod --yes --token="${VERCEL_TOKEN}"
+
+  github_release:
+    runs-on: ubuntu-latest
+    needs: [prepare_release, deploy]
+    if: needs.prepare_release.outputs.should_release == 'true' && needs.deploy.result == 'success'
+
+    steps:
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare_release.outputs.tag }}
+          name: FrameSnap v${{ needs.prepare_release.outputs.current }}
+          generate_release_notes: true

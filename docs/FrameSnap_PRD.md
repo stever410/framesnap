@@ -147,7 +147,7 @@ Coverage requirement (`npm run test:coverage`):
   - `VERCEL_PROJECT_ID` (repo variable)
 
 ### Releases
-- Version bump release workflow must pass quality checks before tagging/release notes.
+- Production release workflow must pass quality checks before deployment and generate release notes only after deploy succeeds.
 
 ---
 

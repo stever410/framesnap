@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "package.json"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,13 +20,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect version change
-        id: version
+      - name: Prepare release
+        id: prep
         shell: bash
         run: |
           set -euo pipefail
           current="$(node -p "require('./package.json').version")"
+          tag="v${current}"
           echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "reason=tag-exists" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "reason=manual-bootstrap" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           if git rev-parse HEAD^ >/dev/null 2>&1; then
             prev="$(git show HEAD^:package.json | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version));")"
@@ -34,17 +49,19 @@ jobs:
           fi
 
           if [ "$current" != "$prev" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "reason=version-bump" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no-version-change" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create tag
-        if: steps.version.outputs.changed == 'true'
+        if: steps.prep.outputs.should_release == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          tag="v${{ steps.version.outputs.current }}"
+          tag="${{ steps.prep.outputs.tag }}"
           if git rev-parse "$tag" >/dev/null 2>&1; then
             echo "Tag $tag already exists. Skipping."
             exit 0
@@ -53,8 +70,9 @@ jobs:
           git push origin "$tag"
 
       - name: Create GitHub release
-        if: steps.version.outputs.changed == 'true'
+        if: steps.prep.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.current }}
+          tag_name: ${{ steps.prep.outputs.tag }}
+          name: FrameSnap v${{ steps.prep.outputs.current }}
           generate_release_notes: true

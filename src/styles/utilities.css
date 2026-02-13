@@ -1,0 +1,32 @@
+.u-glass {
+  background: linear-gradient(145deg, var(--glass-fill-strong), var(--glass-fill));
+  border: 1px solid var(--glass-stroke);
+  box-shadow:
+    0 10px 35px var(--glass-shadow),
+    inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+}
+
+.u-card {
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+}
+
+.u-btn-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.u-icon-sm {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.u-icon-sm svg {
+  width: 100%;
+  height: 100%;
+}

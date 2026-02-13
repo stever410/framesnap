@@ -133,39 +133,39 @@ video {
 }
 
 :root[data-theme="dark"] {
-    --ios-system-background: #000000;
-    --ios-system-grouped-background: #0f1012;
-    --ios-secondary-system-background: #15161a;
-    --ios-tertiary-system-background: #1d1f24;
-    --ios-opaque-separator: #2c2f36;
-    --ios-system-gray6: #121318;
-    --ios-label: #ffffff;
-    --ios-secondary-label: rgba(235, 235, 245, 0.6);
-    --ios-system-blue: #0a84ff;
-    --ios-link: #0a84ff;
-    --ios-system-green: #30d158;
-    --ios-system-orange: #ff9f0a;
-    --ios-system-red: #ff453a;
-    --text-on-cta: #ffffff;
-    --glass-fill: rgba(44, 44, 46, 0.64);
-    --glass-fill-strong: rgba(38, 40, 46, 0.88);
-    --glass-stroke: rgba(78, 82, 92, 0.48);
-    --glass-shadow: rgba(0, 0, 0, 0.5);
-    --glass-highlight: rgba(255, 255, 255, 0.08);
+  --ios-system-background: #000000;
+  --ios-system-grouped-background: #0f1012;
+  --ios-secondary-system-background: #15161a;
+  --ios-tertiary-system-background: #1d1f24;
+  --ios-opaque-separator: #2c2f36;
+  --ios-system-gray6: #121318;
+  --ios-label: #ffffff;
+  --ios-secondary-label: rgba(235, 235, 245, 0.6);
+  --ios-system-blue: #0a84ff;
+  --ios-link: #0a84ff;
+  --ios-system-green: #30d158;
+  --ios-system-orange: #ff9f0a;
+  --ios-system-red: #ff453a;
+  --text-on-cta: #ffffff;
+  --glass-fill: rgba(44, 44, 46, 0.64);
+  --glass-fill-strong: rgba(38, 40, 46, 0.88);
+  --glass-stroke: rgba(78, 82, 92, 0.48);
+  --glass-shadow: rgba(0, 0, 0, 0.5);
+  --glass-highlight: rgba(255, 255, 255, 0.08);
 
-    --control-bg: rgba(27, 29, 34, 0.84);
-    --control-border: rgba(78, 82, 92, 0.62);
-    --chip-bg: rgba(29, 32, 38, 0.84);
-    --chip-border: rgba(78, 82, 92, 0.62);
-    --upload-dropzone-border: rgba(78, 82, 92, 0.68);
-    --upload-icon-bg: rgba(35, 38, 44, 0.96);
-    --upload-icon-border: rgba(78, 82, 92, 0.62);
-    --switch-track-bg: rgba(78, 82, 92, 0.58);
-    --switch-track-border: rgba(99, 103, 114, 0.68);
-    --switch-thumb-bg: #f2f2f7;
-    --cta-primary: #0a84ff;
-    --cta-primary-press: #0060df;
-    --text-muted: rgba(235, 235, 245, 0.7);
+  --control-bg: rgba(27, 29, 34, 0.84);
+  --control-border: rgba(78, 82, 92, 0.62);
+  --chip-bg: rgba(29, 32, 38, 0.84);
+  --chip-border: rgba(78, 82, 92, 0.62);
+  --upload-dropzone-border: rgba(78, 82, 92, 0.68);
+  --upload-icon-bg: rgba(35, 38, 44, 0.96);
+  --upload-icon-border: rgba(78, 82, 92, 0.62);
+  --switch-track-bg: rgba(78, 82, 92, 0.58);
+  --switch-track-border: rgba(99, 103, 114, 0.68);
+  --switch-thumb-bg: #f2f2f7;
+  --cta-primary: #0a84ff;
+  --cta-primary-press: #0060df;
+  --text-muted: rgba(235, 235, 245, 0.7);
 }
 
 @media (prefers-reduced-motion: reduce) {

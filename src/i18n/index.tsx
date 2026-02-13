@@ -1,4 +1,4 @@
-import { createContext, type ComponentChildren } from "preact";
+import { type ComponentChildren, createContext } from "preact";
 import { useContext, useEffect, useMemo, useState } from "preact/hooks";
 import enMessages from "./locales/en.json";
 import viMessages from "./locales/vi.json";
@@ -20,10 +20,10 @@ type MessageCatalog = {
 const EN_MESSAGES = enMessages;
 
 type MessageSchema = {
-  [K in keyof typeof EN_MESSAGES]: typeof EN_MESSAGES[K] extends string
+  [K in keyof typeof EN_MESSAGES]: (typeof EN_MESSAGES)[K] extends string
     ? string
     : {
-        [P in keyof typeof EN_MESSAGES[K]]: typeof EN_MESSAGES[K][P] extends string
+        [P in keyof (typeof EN_MESSAGES)[K]]: (typeof EN_MESSAGES)[K][P] extends string
           ? string
           : never;
       };
@@ -97,9 +97,7 @@ function applyLocaleMetadata(locale: Locale): void {
 
   const descriptionMeta = document.getElementById("meta-description");
   if (descriptionMeta instanceof HTMLMetaElement) {
-    descriptionMeta.content = formatMessage(
-      getTemplate(locale, "meta.description"),
-    );
+    descriptionMeta.content = formatMessage(getTemplate(locale, "meta.description"));
   }
 
   const manifestLink = document.getElementById("app-manifest");
@@ -139,9 +137,7 @@ type I18nProviderProps = {
 };
 
 export function I18nProvider({ children }: I18nProviderProps) {
-  const [locale, setLocaleState] = useState<Locale>(() =>
-    resolveInitialLocale(),
-  );
+  const [locale, setLocaleState] = useState<Locale>(() => resolveInitialLocale());
 
   const setLocale = (nextLocale: Locale): void => {
     setLocaleState(nextLocale);

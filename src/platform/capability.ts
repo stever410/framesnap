@@ -1,6 +1,9 @@
 export function isIOS(): boolean {
   const ua = navigator.userAgent;
-  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
 }
 
 export function isAndroid(): boolean {
@@ -21,7 +24,7 @@ export function canShareFiles(): boolean {
   }
 
   const probe = new File([new Blob(["x"], { type: "text/plain" })], "probe.txt", {
-    type: "text/plain"
+    type: "text/plain",
   });
 
   return nav.canShare({ files: [probe] });

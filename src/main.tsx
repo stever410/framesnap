@@ -3,6 +3,7 @@ import { App } from "./app/app";
 import { I18nProvider } from "./i18n";
 import "./styles/tokens.css";
 import "./styles/base.css";
+import "./styles/utilities.css";
 import "./styles/components.css";
 
 const APP_VERSION = __APP_VERSION__;
@@ -39,10 +40,7 @@ if ("serviceWorker" in navigator) {
           }
 
           installing.addEventListener("statechange", () => {
-            if (
-              installing.state === "installed" &&
-              navigator.serviceWorker.controller
-            ) {
+            if (installing.state === "installed" && navigator.serviceWorker.controller) {
               promptUpdate();
             }
           });
@@ -61,9 +59,7 @@ if ("serviceWorker" in navigator) {
       });
   } else {
     void navigator.serviceWorker.getRegistrations().then((registrations) => {
-      void Promise.all(
-        registrations.map((registration) => registration.unregister()),
-      );
+      void Promise.all(registrations.map((registration) => registration.unregister()));
     });
   }
 }

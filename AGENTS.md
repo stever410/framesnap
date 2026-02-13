@@ -58,9 +58,9 @@ Coverage thresholds are enforced (80% statements/branches/functions/lines).
 
 ## 6. CI/CD Guardrails
 
-- `ci-quality.yml` runs on PRs and pushes to `main`.
-- `release-notes.yml` must pass quality checks before creating release/tag outputs.
-- `deploy-production.yml` deploys on `v*` tags or manual trigger and re-runs quality gates before deploy.
+- `ci-quality.yml` runs on PRs.
+- `deploy-production.yml` runs on `main` version bumps (`package.json`) or manual trigger.
+- `deploy-production.yml` must run quality checks before deploy and create GitHub release notes only after deploy succeeds.
 
 Do not bypass the quality gate dependency chain in GitHub workflows.
 
@@ -118,5 +118,4 @@ npm run test:coverage
 - `docs/ARCHITECTURE.md`
 - `docs/FrameSnap_PRD.md`
 - `.github/workflows/ci-quality.yml`
-- `.github/workflows/release-notes.yml`
 - `.github/workflows/deploy-production.yml`

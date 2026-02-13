@@ -210,9 +210,8 @@ Automated local/CI gates:
 
 GitHub workflows:
 
-- `ci-quality.yml`: PR + main checks
-- `deploy-production.yml`: quality + build + deploy
-- `release-notes.yml`: quality gate before release job
+- `ci-quality.yml`: PR quality checks
+- `deploy-production.yml`: quality + build + tag + deploy + release notes
 
 ## 10. Deployment
 

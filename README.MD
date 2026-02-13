@@ -78,15 +78,12 @@ npm run test:coverage # run tests with coverage report (80% min thresholds)
 Workflows are in `.github/workflows/`:
 
 - `ci-quality.yml`
-  - Runs on every pull request and push to `main`
+  - Runs on every pull request
   - Gates: `npm run check`, `npm run typecheck`, `npm run test`
 - `deploy-production.yml`
-  - Runs on version tags (`v*`) or manual dispatch
+  - Runs on `main` version bumps (`package.json`) or manual dispatch
   - Re-runs quality gates + build before deploy
-  - Deploys to Vercel production
-- `release-notes.yml`
-  - Handles release tagging/notes for version bumps
-  - Now includes the same quality gate before release job
+  - Creates tag, deploys to Vercel production, then creates GitHub release notes on success
 
 ## Production Deployment
 

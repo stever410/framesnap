@@ -109,8 +109,8 @@ Test scope expectations:
 GitHub workflow requirements:
 
 - Pull requests must pass `ci-quality.yml`.
-- Production deploy pipeline must re-run checks before deployment.
-- Release notes workflow must not create releases unless quality checks pass.
+- Production release pipeline (`deploy-production.yml`) must re-run checks before deployment.
+- Production release notes must be created only after a successful production deployment.
 
 ## 10. Git and PR Rules
 
